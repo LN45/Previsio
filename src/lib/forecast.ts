@@ -8,6 +8,7 @@ import {
   isSameDay,
   parseISO,
 } from 'date-fns'
+import { fr } from 'date-fns/locale'
 import type { ForecastSnapshot, Operation, Recurrence } from '../types/finance'
 
 const normalizeDate = (value: string | Date): Date => {
@@ -100,6 +101,17 @@ export function generateRecurringOccurrences(
   return occurrences
 }
 
+export function getRecurringOperationsInRange(
+  recurrences: Recurrence[],
+  startDate: Date,
+  endDate: Date,
+): Array<{ id: string; type: Operation['type']; amount: number; date: string; categoryId: string; accountId: string; status: Operation['status']; description: string; isRecurring: true; recurrenceId: string }> {
+  return recurrences
+    .filter((recurrence) => recurrence.isActive)
+    .flatMap((recurrence) => generateRecurringOccurrences(recurrence, startDate, endDate))
+    .sort((left, right) => left.date.localeCompare(right.date))
+}
+
 export function getEstimatedVariableExpenses(
   operations: Operation[],
   asOfDate: Date,
@@ -115,6 +127,42 @@ export function getEstimatedVariableExpenses(
       return date > start && date <= end && operation.type === 'expense'
     })
     .reduce((total, operation) => total + operation.amount, 0)
+}
+
+// Libellé court d'un mois au format 'yyyy-MM', ex. 'oct. 2026'
+export function formatMonthLabel(monthKey: string): string {
+  const monthDate = parseISO(`${monthKey}-01`)
+  const monthLabel = format(monthDate, 'MMM', { locale: fr }).replace(/\.$/, '').toLowerCase()
+  return `${monthLabel}. ${format(monthDate, 'yyyy')}`
+}
+
+export function buildMonthlyPlan(
+  operations: Operation[],
+  asOfDate: Date,
+  monthCount: number,
+): Array<{ monthKey: string; label: string; income: number; expense: number; net: number }> {
+  const start = new Date(asOfDate.getFullYear(), asOfDate.getMonth(), 1)
+
+  return Array.from({ length: monthCount }, (_, index) => {
+    const monthDate = addMonths(start, index)
+    const monthKey = format(monthDate, 'yyyy-MM')
+
+    const income = operations
+      .filter((operation) => operation.date.startsWith(monthKey) && operation.type === 'income')
+      .reduce((sum, operation) => sum + operation.amount, 0)
+
+    const expense = operations
+      .filter((operation) => operation.date.startsWith(monthKey) && operation.type === 'expense')
+      .reduce((sum, operation) => sum + operation.amount, 0)
+
+    return {
+      monthKey,
+      label: formatMonthLabel(monthKey),
+      income,
+      expense,
+      net: income - expense,
+    }
+  })
 }
 
 export function buildForecastSnapshot(

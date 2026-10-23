@@ -2,9 +2,10 @@
 import { computed, onMounted, ref } from 'vue'
 import { format } from 'date-fns'
 import { useFinanceStore } from '../stores/finance'
-import type { OperationStatus, OperationType } from '../types/finance'
+import type { Operation, OperationStatus, OperationType } from '../types/finance'
 
 const store = useFinanceStore()
+const editingId = ref<string | null>(null)
 const form = ref<{
   type: OperationType
   amount: number
@@ -25,35 +26,20 @@ const form = ref<{
   isRecurring: false,
 })
 
-const categories = [
-  { id: 'salary', label: 'Salaire', type: 'income' },
-  { id: 'bonus', label: 'Prime', type: 'income' },
-  { id: 'housing', label: 'Logement', type: 'expense' },
-  { id: 'food', label: 'Alimentation', type: 'expense' },
-  { id: 'transport', label: 'Transport', type: 'expense' },
-  { id: 'insurance', label: 'Assurance', type: 'expense' },
-]
-
 const filteredCategories = computed(() =>
-  categories.filter((category) => category.type === form.value.type),
+  store.categories.filter((category) => category.type === form.value.type),
 )
 
-const submit = async () => {
-  if (!form.value.description || Number(form.value.amount) <= 0) {
-    return
-  }
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value)
 
-  await store.addOperation({
-    type: form.value.type,
-    amount: Number(form.value.amount),
-    date: form.value.date,
-    categoryId: form.value.categoryId,
-    accountId: form.value.accountId,
-    status: form.value.status,
-    description: form.value.description,
-    isRecurring: form.value.isRecurring,
-  })
-
+const resetForm = () => {
+  editingId.value = null
   form.value = {
     type: 'expense',
     amount: 0,
@@ -66,7 +52,54 @@ const submit = async () => {
   }
 }
 
+const submit = async () => {
+  if (Number(form.value.amount) <= 0) {
+    return
+  }
+
+  if (editingId.value) {
+    await store.updateOperation(editingId.value, {
+      type: form.value.type,
+      amount: Number(form.value.amount),
+      date: form.value.date,
+      categoryId: form.value.categoryId,
+      accountId: form.value.accountId,
+      status: form.value.status,
+      description: form.value.description,
+      isRecurring: form.value.isRecurring,
+    })
+  } else {
+    await store.addOperation({
+      type: form.value.type,
+      amount: Number(form.value.amount),
+      date: form.value.date,
+      categoryId: form.value.categoryId,
+      accountId: form.value.accountId,
+      status: form.value.status,
+      description: form.value.description,
+      isRecurring: form.value.isRecurring,
+    })
+  }
+
+  resetForm()
+}
+
+const startEditing = (item: Operation) => {
+  editingId.value = item.id
+  form.value = {
+    type: item.type,
+    amount: item.amount,
+    date: item.date,
+    categoryId: item.categoryId,
+    accountId: item.accountId,
+    status: item.status,
+    description: item.description,
+    isRecurring: item.isRecurring,
+  }
+}
+
 onMounted(async () => {
+  await store.loadCollections()
   await store.loadOperations()
 })
 </script>
@@ -75,7 +108,7 @@ onMounted(async () => {
   <main class="operations-screen">
     <section class="panel">
       <div class="panel-header">
-        <h2>Nouvelle opération</h2>
+        <h2>{{ editingId ? 'Modifier l\'opération' : 'Nouvelle opération' }}</h2>
       </div>
 
       <form class="form-grid" @submit.prevent="submit">
@@ -101,7 +134,7 @@ onMounted(async () => {
           <span>Catégorie</span>
           <select v-model="form.categoryId">
             <option v-for="category in filteredCategories" :key="category.id" :value="category.id">
-              {{ category.label }}
+              {{ category.name }}
             </option>
           </select>
         </label>
@@ -125,7 +158,10 @@ onMounted(async () => {
           <span>Récurrente</span>
         </label>
 
-        <button class="primary-button" type="submit">Enregistrer</button>
+        <div class="form-actions">
+          <button class="primary-button" type="submit">{{ editingId ? 'Enregistrer' : 'Ajouter' }}</button>
+          <button v-if="editingId" class="secondary-button" type="button" @click="resetForm">Annuler</button>
+        </div>
       </form>
     </section>
 
@@ -140,14 +176,17 @@ onMounted(async () => {
       <div v-else class="operation-table">
         <div v-for="item in store.operations" :key="item.id" class="row">
           <div>
-            <strong>{{ item.description }}</strong>
+            <strong>{{ item.description || 'Opération' }}</strong>
             <small>{{ item.date }}</small>
           </div>
           <div class="row-amount">
             <span :class="item.type === 'income' ? 'positive' : 'negative'">
-              {{ item.type === 'income' ? '+' : '-' }}{{ item.amount }} €
+              {{ item.type === 'income' ? '+' : '-' }}{{ formatCurrency(item.amount) }}
             </span>
-            <button class="delete-button" @click="store.deleteOperation(item.id)">Supprimer</button>
+            <div class="row-actions">
+              <button class="secondary-button" type="button" @click="startEditing(item)">Modifier</button>
+              <button class="delete-button" @click="store.deleteOperation(item.id)">Supprimer</button>
+            </div>
           </div>
         </div>
       </div>

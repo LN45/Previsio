@@ -1,8 +1,58 @@
 import { addDays, format } from 'date-fns'
-import type { Operation } from '../types/finance'
+import type { Budget, Category, Operation, Recurrence } from '../types/finance'
 
 const today = new Date()
 const date = (offset: number) => format(addDays(today, offset), 'yyyy-MM-dd')
+const month = (offset: number) => format(addDays(today, offset * 30), 'yyyy-MM')
+
+export const sampleCategories: Category[] = [
+  { id: 'salary', name: 'Salaire', type: 'income', color: '#66d9c1', createdAt: date(-30), updatedAt: date(-30) },
+  { id: 'bonus', name: 'Prime', type: 'income', color: '#7ec9ff', createdAt: date(-30), updatedAt: date(-30) },
+  { id: 'housing', name: 'Logement', type: 'expense', color: '#ff8e8e', createdAt: date(-30), updatedAt: date(-30) },
+  { id: 'food', name: 'Alimentation', type: 'expense', color: '#f8c76f', createdAt: date(-30), updatedAt: date(-30) },
+  { id: 'transport', name: 'Transport', type: 'expense', color: '#7ec9ff', createdAt: date(-30), updatedAt: date(-30) },
+  { id: 'insurance', name: 'Assurance', type: 'expense', color: '#9d8cff', createdAt: date(-30), updatedAt: date(-30) },
+]
+
+export const sampleBudgets: Budget[] = [
+  { id: 'budget-housing', categoryId: 'housing', month: month(0), plannedAmount: 1250, actualAmount: 1250, createdAt: date(-10), updatedAt: date(-10) },
+  { id: 'budget-food', categoryId: 'food', month: month(0), plannedAmount: 450, actualAmount: 220, createdAt: date(-10), updatedAt: date(-10) },
+  { id: 'budget-transport', categoryId: 'transport', month: month(0), plannedAmount: 180, actualAmount: 90, createdAt: date(-10), updatedAt: date(-10) },
+  { id: 'budget-insurance', categoryId: 'insurance', month: month(0), plannedAmount: 160, actualAmount: 0, createdAt: date(-10), updatedAt: date(-10) },
+]
+
+export const sampleRecurrences: Recurrence[] = [
+  {
+    id: 'rent',
+    name: 'Loyer',
+    type: 'monthly',
+    startDate: date(-9),
+    nextDate: date(-9),
+    amount: 1250,
+    categoryId: 'housing',
+    accountId: 'main',
+    operationType: 'expense',
+    description: 'Loyer mensuel',
+    isActive: true,
+    createdAt: date(-30),
+    updatedAt: date(-30),
+  },
+  {
+    id: 'insurance',
+    name: 'Assurance auto',
+    type: 'yearly',
+    startDate: date(33),
+    nextDate: date(33),
+    amount: 320,
+    categoryId: 'insurance',
+    accountId: 'main',
+    operationType: 'expense',
+    description: 'Assurance auto',
+    isActive: true,
+    createdAt: date(-30),
+    updatedAt: date(-30),
+  },
+]
 
 export const sampleOperations: Operation[] = [
   {

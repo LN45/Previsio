@@ -5,70 +5,52 @@ import { useFinanceStore } from '../stores/finance'
 
 const store = useFinanceStore()
 
-const categoryBreakdown = computed(() => {
-  const groups = new Map<string, number>()
-
-  store.operations
-    .filter((operation) => operation.type === 'expense')
-    .forEach((operation) => {
-      const value = groups.get(operation.categoryId) ?? 0
-      groups.set(operation.categoryId, value + operation.amount)
-    })
-
-  return [...groups.entries()].map(([categoryId, total]) => ({
-    categoryId,
-    total,
-    label:
-      categoryId === 'housing'
-        ? 'Logement'
-        : categoryId === 'food'
-          ? 'Alimentation'
-          : categoryId === 'transport'
-            ? 'Transport'
-            : categoryId === 'insurance'
-              ? 'Assurance'
-              : 'Autre',
-  }))
-})
+const expenseBreakdown = computed(() => store.getExpenseBreakdown(store.currentMonthKey))
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('fr-FR', {
     style: 'currency',
     currency: 'EUR',
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value)
 
-const summaryCards = computed(() => [
-  {
-    label: 'Solde actuel',
-    value: formatCurrency(store.realBalance),
-    tone: store.realBalance >= 0 ? 'positive' : 'negative',
-  },
-  {
-    label: '30 jours',
-    value: formatCurrency(store.forecast.short.projectedBalance),
-    tone: 'neutral',
-  },
-  {
-    label: '90 jours',
-    value: formatCurrency(store.forecast.medium.projectedBalance),
-    tone: 'neutral',
-  },
-  {
-    label: '365 jours',
-    value: formatCurrency(store.forecast.long.projectedBalance),
-    tone: 'neutral',
-  },
-])
 </script>
 
 <template>
   <main class="dashboard">
-    <section class="summary-grid">
-      <article v-for="card in summaryCards" :key="card.label" class="stat-card" :class="card.tone">
-        <span>{{ card.label }}</span>
-        <strong>{{ card.value }}</strong>
+    <section class="top-summary">
+      <article class="stat-card featured">
+        <span>Solde actuel</span>
+        <strong :class="store.realBalance >= 0 ? 'positive' : 'negative'">{{ formatCurrency(store.realBalance) }}</strong>
+        <small>Montant disponible sur le compte principal</small>
       </article>
+
+      <section class="panel monthly-plan-panel">
+        <div class="panel-header">
+          <h2>Plan mensuel</h2>
+          <span>3 prochains mois</span>
+        </div>
+
+        <div class="plan-grid">
+          <article v-for="month in store.monthlyPlan" :key="month.monthKey" class="plan-card">
+            <div class="plan-header">
+              <span>{{ month.label }}</span>
+              <strong :class="month.net >= 0 ? 'positive' : 'negative'">{{ formatCurrency(month.net) }}</strong>
+            </div>
+            <div class="plan-values">
+              <div>
+                <small>Entrées</small>
+                <strong>{{ formatCurrency(month.income) }}</strong>
+              </div>
+              <div>
+                <small>Dépenses</small>
+                <strong>{{ formatCurrency(month.expense) }}</strong>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
     </section>
 
     <section class="panel-grid">
@@ -98,22 +80,23 @@ const summaryCards = computed(() => [
 
       <article class="panel">
         <div class="panel-header">
-          <h2>Répartition des dépenses</h2>
-          <span>{{ formatCurrency(store.spendingTotal) }}</span>
+          <h2>Dépenses · {{ expenseBreakdown.label }}</h2>
+          <span>{{ formatCurrency(expenseBreakdown.total) }}</span>
         </div>
 
-        <div class="category-list">
-          <div v-for="item in categoryBreakdown" :key="item.categoryId" class="category-row">
+        <div v-if="expenseBreakdown.items.length" class="category-list">
+          <div v-for="item in expenseBreakdown.items" :key="item.categoryId" class="category-row">
             <div class="category-labels">
-              <span class="dot" :class="item.categoryId"></span>
+              <span class="dot" :style="{ background: item.color }"></span>
               <span>{{ item.label }}</span>
             </div>
             <div class="category-values">
               <span>{{ formatCurrency(item.total) }}</span>
-              <small>{{ Math.round((item.total / store.spendingTotal) * 100) || 0 }}%</small>
+              <small>{{ item.share }}%</small>
             </div>
           </div>
         </div>
+        <p v-else class="muted">Aucune dépense ce mois-ci.</p>
       </article>
     </section>
 
@@ -135,6 +118,28 @@ const summaryCards = computed(() => [
         <div>
           <small>Opérations futures</small>
           <strong>{{ formatCurrency(store.forecast.short.futureOperationsTotal) }}</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel secondary-panel">
+      <div class="panel-header">
+        <h2>Vision à moyen et long terme</h2>
+        <span>À venir</span>
+      </div>
+
+      <div class="secondary-grid">
+        <div class="mini-stat">
+          <small>30 jours</small>
+          <strong>{{ formatCurrency(store.forecast.short.projectedBalance) }}</strong>
+        </div>
+        <div class="mini-stat">
+          <small>90 jours</small>
+          <strong>{{ formatCurrency(store.forecast.medium.projectedBalance) }}</strong>
+        </div>
+        <div class="mini-stat">
+          <small>365 jours</small>
+          <strong>{{ formatCurrency(store.forecast.long.projectedBalance) }}</strong>
         </div>
       </div>
     </section>
