@@ -42,12 +42,19 @@ const formatCurrency = (value: number) =>
         </div>
 
         <div class="plan-grid">
-          <article v-for="month in store.monthlyPlan" :key="month.monthKey" class="plan-card">
+          <article v-for="(month, index) in store.monthlyPlan" :key="month.monthKey" class="plan-card">
             <div class="plan-header">
               <span>{{ month.label }}</span>
-              <strong :class="month.net >= 0 ? 'positive' : 'negative'">{{ formatCurrency(month.net) }}</strong>
+              <div class="plan-closing">
+                <small>Fin de mois</small>
+                <strong :class="month.closing >= 0 ? 'positive' : 'negative'">{{ formatCurrency(month.closing) }}</strong>
+              </div>
             </div>
             <div class="plan-values">
+              <div class="plan-opening">
+                <small>{{ index === 0 ? 'Solde début' : 'Report' }}</small>
+                <strong>{{ formatCurrency(month.opening) }}</strong>
+              </div>
               <div>
                 <small>Entrées</small>
                 <strong>{{ formatCurrency(month.income) }}</strong>

@@ -43,7 +43,7 @@ Le projet est pensé comme un outil de planification et d’analyse, avec un sto
 
 - **solde compte** : solde de départ du compte + opérations « réelles » dont la date est passée (le solde bancaire du jour),
 - **fin de mois** : solde compte, une fois déduites toutes les opérations restantes du mois en cours (prévues, estimées, ou réelles datées plus tard dans le mois) et les échéances de récurrences à venir dans le mois,
-- plan mensuel : entrées, dépenses et solde net du mois en cours et des deux mois suivants,
+- plan mensuel du mois en cours et des deux mois suivants : solde de début, entrées, dépenses et solde de fin de mois ; le mois en cours démarre avec le solde du compte au 1er du mois, et chaque fin de mois est reportée en début du mois suivant (la fin du mois en cours est égale au montant « fin de mois » ci-dessus),
 - liste des 5 opérations les plus anciennes (par date),
 - répartition des dépenses du mois en cours par catégorie (nom, couleur, montant et part de chaque catégorie, du plus gros poste au plus petit) ; comme le plan mensuel, elle compte toutes les dépenses datées dans le mois, réelles, prévues ou estimées,
 - solde prévisionnel à 30, 90 et 365 jours : solde compte + opérations « prévues » et « estimées » datées dans la période,

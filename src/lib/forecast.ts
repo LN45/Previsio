@@ -151,12 +151,17 @@ export function formatMonthLabel(monthKey: string): string {
   return `${monthLabel}. ${format(monthDate, 'yyyy')}`
 }
 
+// openingBalance : solde du compte avant les opérations (solde de départ du compte).
+// Chaque mois démarre avec le solde de fin du mois précédent ; le premier mois démarre avec
+// openingBalance + les opérations réelles antérieures à ce mois.
 export function buildMonthlyPlan(
   operations: Operation[],
   asOfDate: Date,
   monthCount: number,
-): Array<{ monthKey: string; label: string; income: number; expense: number; net: number }> {
+  openingBalance = 0,
+): Array<{ monthKey: string; label: string; income: number; expense: number; net: number; opening: number; closing: number }> {
   const start = new Date(asOfDate.getFullYear(), asOfDate.getMonth(), 1)
+  let opening = openingBalance + calculateRealBalanceAtDate(operations, addDays(start, -1))
 
   return Array.from({ length: monthCount }, (_, index) => {
     const monthDate = addMonths(start, index)
@@ -170,12 +175,17 @@ export function buildMonthlyPlan(
       .filter((operation) => operation.date.startsWith(monthKey) && operation.type === 'expense')
       .reduce((sum, operation) => sum + operation.amount, 0)
 
+    const monthOpening = opening
+    opening = monthOpening + income - expense
+
     return {
       monthKey,
       label: formatMonthLabel(monthKey),
       income,
       expense,
       net: income - expense,
+      opening: monthOpening,
+      closing: opening,
     }
   })
 }

@@ -135,6 +135,25 @@ describe('financial forecast engine', () => {
     expect(plan[2].net).toBe(1400)
   })
 
+  it('carries each month closing balance over to the next month', () => {
+    const operations = [
+      { id: 'o0', type: 'income', amount: 300, date: '2026-09-15', categoryId: 'salary', accountId: 'main', status: 'real', description: 'Avant le plan', isRecurring: false, createdAt: '', updatedAt: '' },
+      { id: 'o9', type: 'expense', amount: 999, date: '2026-09-20', categoryId: 'food', accountId: 'main', status: 'planned', description: 'Prévu jamais confirmé', isRecurring: false, createdAt: '', updatedAt: '' },
+      { id: 'o1', type: 'income', amount: 2600, date: '2026-10-01', categoryId: 'salary', accountId: 'main', status: 'real', description: 'Salaire', isRecurring: true, createdAt: '', updatedAt: '' },
+      { id: 'o2', type: 'expense', amount: 1200, date: '2026-10-05', categoryId: 'housing', accountId: 'main', status: 'real', description: 'Loyer', isRecurring: true, createdAt: '', updatedAt: '' },
+      { id: 'o3', type: 'expense', amount: 1500, date: '2026-11-05', categoryId: 'housing', accountId: 'main', status: 'planned', description: 'Loyer', isRecurring: true, createdAt: '', updatedAt: '' },
+    ]
+
+    const plan = buildMonthlyPlan(operations, parseISO('2026-10-23T10:00:00'), 3, 1000)
+
+    expect(plan.map((month) => [month.opening, month.closing])).toEqual([
+      [1300, 2700],
+      [2700, 1200],
+      [1200, 1200],
+    ])
+    expect(plan[0].closing).toBe(1000 + calculateMonthEndBalance(operations, parseISO('2026-10-23T10:00:00')))
+  })
+
   it('computes the month-end balance from past real operations and everything left in the month', () => {
     const operations = [
       { id: 'o1', type: 'income', amount: 2500, date: '2026-10-01', categoryId: 'salary', accountId: 'main', status: 'real', description: 'Salaire', isRecurring: true, createdAt: '', updatedAt: '' },

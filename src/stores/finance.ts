@@ -395,7 +395,10 @@ export const useFinanceStore = defineStore('finance', () => {
     }
   })
 
-  const monthlyPlan = computed(() => buildMonthlyPlan(projectedOperations.value, new Date(), 3))
+  // Le solde de fin de chaque mois est reporté en début du mois suivant
+  const monthlyPlan = computed(() =>
+    buildMonthlyPlan(projectedOperations.value, new Date(), 3, account.value?.initialBalance ?? 0),
+  )
 
   // 6 mois passés + mois en cours + 2 mois à venir, pour le graphique entrées / dépenses
   const monthlyHistory = computed(() => buildMonthlyPlan(projectedOperations.value, subMonths(new Date(), 6), 9))
