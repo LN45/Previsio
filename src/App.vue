@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { installPrompt, promptInstall } from './lib/install'
 import { useFinanceStore } from './stores/finance'
 
 const route = useRoute()
@@ -115,6 +116,15 @@ const mobileActionItem = computed(() =>
             </RouterLink>
 
             <button
+              v-if="installPrompt"
+              type="button"
+              class="app-menu-item primary-item"
+              @click=";[promptInstall(), (mobileMenuOpen = false)]"
+            >
+              Installer l’application
+            </button>
+
+            <button
               v-if="mobileActionItem.action === 'clear'"
               type="button"
               class="app-menu-item danger-item"
@@ -147,6 +157,11 @@ const mobileActionItem = computed(() =>
         {{ item.label }}
       </RouterLink>
     </nav>
+
+    <div v-if="installPrompt" class="install-banner" role="status">
+      <p>Installe Prévisio sur ton écran d’accueil pour l’ouvrir comme une application, même hors connexion.</p>
+      <button class="primary-button" type="button" @click="promptInstall">Installer</button>
+    </div>
 
     <div v-if="store.appMode === 'demo'" class="demo-banner" role="status">
       <span class="demo-badge">Démo</span>

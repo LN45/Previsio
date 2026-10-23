@@ -283,7 +283,7 @@ Le chemin `/Previsio/` est défini par l’option `base` de [vite.config.ts](vit
 
 Prévisio est une Progressive Web App (PWA) : elle s’installe depuis le navigateur, s’ouvre en plein écran comme une application et fonctionne hors connexion après la première visite.
 
-- **Android (Chrome)** : ouvrir l’adresse ci-dessus, puis menu ⋮ → **Installer l’application** (ou **Ajouter à l’écran d’accueil**).
+- **Android (Chrome)** : ouvrir l’adresse ci-dessus ; un bandeau **Installer** apparaît en haut de l’application (le bouton est aussi dans le menu rapide). À défaut : menu ⋮ → **Installer l’application**. Le bandeau n’apparaît pas si l’application est déjà installée.
 - **iPhone / iPad (Safari)** : ouvrir l’adresse, bouton **Partager** → **Sur l’écran d’accueil**.
 
 Les mises à jour sont récupérées automatiquement au lancement suivant de l’application.
