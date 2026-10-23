@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { useFinanceStore } from '../stores/finance'
 import type { OperationType, Recurrence, RecurrenceType } from '../types/finance'
 
@@ -39,6 +39,14 @@ const formatCurrency = (value: number) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value)
+
+const formatShortDate = (value: string) => format(parseISO(value), 'dd/MM/yy')
+
+const frequencyLabels: Record<RecurrenceType, string> = {
+  monthly: 'Mensuelle',
+  quarterly: 'Trimestrielle',
+  yearly: 'Annuelle',
+}
 
 const resetForm = () => {
   editingId.value = null
@@ -180,8 +188,8 @@ onMounted(async () => {
           <div>
             <strong>{{ item.name }}</strong>
             <small class="recurrence-meta">
-              {{ item.description || 'Sans description' }}
-              <span class="recurrence-frequency">{{ item.type }}</span>
+              <template v-if="item.description">{{ item.description }}</template>
+              <span class="recurrence-frequency">{{ frequencyLabels[item.type] }}</span>
             </small>
           </div>
 
@@ -189,7 +197,7 @@ onMounted(async () => {
             <span :class="item.operationType === 'income' ? 'positive' : 'negative'">
               {{ item.operationType === 'income' ? '+' : '-' }}{{ formatCurrency(item.amount) }}
             </span>
-            <span class="muted">{{ item.startDate }}</span>
+            <span class="muted row-date">{{ formatShortDate(item.startDate) }}</span>
             <div class="row-actions">
               <button class="secondary-button" type="button" @click="startEditing(item)">Modifier</button>
               <button class="delete-button" @click="store.deleteRecurrence(item.id)">Supprimer</button>

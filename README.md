@@ -41,14 +41,15 @@ Le projet est pensé comme un outil de planification et d’analyse, avec un sto
 
 ### 1. Dashboard financier
 
-- solde actuel : solde de départ du compte + opérations « réelles » dont la date est passée,
+- **solde compte** : solde de départ du compte + opérations « réelles » dont la date est passée (le solde bancaire du jour),
+- **fin de mois** : solde compte, une fois déduites toutes les opérations restantes du mois en cours (prévues, estimées, ou réelles datées plus tard dans le mois) et les échéances de récurrences à venir dans le mois,
 - plan mensuel : entrées, dépenses et solde net du mois en cours et des deux mois suivants,
 - liste des 5 opérations les plus anciennes (par date),
 - répartition des dépenses du mois en cours par catégorie (nom, couleur, montant et part de chaque catégorie, du plus gros poste au plus petit) ; comme le plan mensuel, elle compte toutes les dépenses datées dans le mois, réelles, prévues ou estimées,
-- solde prévisionnel à 30, 90 et 365 jours : solde actuel + opérations « prévues » et « estimées » datées dans la période,
+- solde prévisionnel à 30, 90 et 365 jours : solde compte + opérations « prévues » et « estimées » datées dans la période,
 - montant des dépenses estimées et des opérations futures sur les 30 prochains jours.
 
-Les prévisions reposent uniquement sur les opérations saisies : les règles de récurrence ne sont pas prises en compte dans les calculs.
+Le plan mensuel, la fin de mois, les prévisions, la répartition des dépenses et les graphiques comptent les opérations saisies **et** les échéances à venir des récurrences actives (voir [Récurrences](#6-récurrences)).
 
 ### 2. Gestion du compte principal
 
@@ -83,7 +84,11 @@ Les prévisions reposent uniquement sur les opérations saisies : les règles de
 - gestion des montants et dates de départ,
 - modification et suppression des règles récurrentes.
 
-Les règles sont enregistrées pour garder la liste de ses mouvements périodiques ; elles ne créent pas d’opérations et n’alimentent pas encore les prévisions.
+Les échéances des règles actives sont calculées automatiquement et comptées comme des opérations « prévues » dans le plan mensuel, la fin de mois, les prévisions, la répartition des dépenses et les graphiques. Elles ne sont jamais enregistrées comme opérations : modifier ou supprimer une règle met tous les calculs à jour immédiatement.
+
+Seules les échéances **à partir d’aujourd’hui** sont comptées (sur un an). Pour le passé, seules les opérations saisies comptent : une fois le loyer payé, on le saisit comme opération « réelle » et l’échéance correspondante, désormais passée, n’est pas comptée une seconde fois.
+
+Les budgets, eux, comparent le montant prévu aux seules opérations saisies.
 
 ### 7. Graphiques
 
@@ -246,10 +251,10 @@ C’est le moyen de conserver ses données ou de les transférer d’un appareil
 2. Définir le solde initial du compte principal.
 3. Ajouter les catégories nécessaires.
 4. Enregistrer les revenus et dépenses déjà passés avec le statut « réelle ».
-5. Saisir les opérations à venir avec le statut « prévue » ou « estimée » : ce sont elles qui alimentent les prévisions.
-6. Définir les budgets mensuels.
-7. Lister les récurrences (loyer, abonnements, salaire…) pour garder une vue sur les mouvements périodiques.
-8. Consulter le dashboard pour suivre le solde et les prévisions.
+5. Ajouter les récurrences (loyer, abonnements, salaire…) : leurs échéances à venir sont comptées automatiquement.
+6. Saisir les autres opérations à venir avec le statut « prévue » ou « estimée ».
+7. Définir les budgets mensuels.
+8. Consulter le dashboard : solde compte, fin de mois et prévisions.
 9. Exporter régulièrement ses données depuis l’écran Compte principal.
 
 ## Exemple de parcours
@@ -258,7 +263,8 @@ Un usage typique du produit est le suivant :
 
 - définir le solde actuel du compte,
 - créer les catégories de dépenses habituelles,
-- saisir les opérations déjà passées, puis les opérations prévues des prochains mois,
+- saisir les opérations déjà passées,
+- créer les récurrences (loyer, abonnements, salaire…) puis les autres opérations prévues des prochains mois,
 - fixer des budgets mensuels,
 - observer le plan mensuel et le solde prévisionnel sur le dashboard, puis l’évolution mois par mois dans l’écran Graphiques.
 

@@ -5,6 +5,7 @@ import { type AppMode, getModeOptions } from '../lib/demo'
 import {
   buildForecastSnapshot,
   buildMonthlyPlan,
+  calculateMonthEndBalance,
   calculateRealBalanceAtDate,
   formatMonthLabel,
   getRecurringOperationsInRange,
@@ -358,43 +359,52 @@ export const useFinanceStore = defineStore('finance', () => {
     () => (account.value?.initialBalance ?? 0) + calculateRealBalanceAtDate(operations.value, new Date()),
   )
 
+  // Échéances des récurrences à partir d'aujourd'hui et sur un an, traitées comme des opérations prévues.
+  // Les échéances passées ne comptent pas : seules les opérations saisies font foi pour le passé.
+  const upcomingRecurringOperations = computed<Operation[]>(() => {
+    const start = new Date()
+    return getRecurringOperationsInRange(recurrences.value, start, addDays(start, 366)).map((occurrence) => ({
+      ...occurrence,
+      createdAt: '',
+      updatedAt: '',
+    }))
+  })
+
+  // Opérations saisies + échéances à venir : base de tous les calculs de plan et de prévision
+  const projectedOperations = computed(() => [...operations.value, ...upcomingRecurringOperations.value])
+
+  const monthEndBalance = computed(
+    () => (account.value?.initialBalance ?? 0) + calculateMonthEndBalance(projectedOperations.value, new Date()),
+  )
+
   const forecast = computed(() => {
     const accountInitialBalance = account.value?.initialBalance ?? 0
+    const snapshot = (horizonDays: number) => {
+      const result = buildForecastSnapshot(projectedOperations.value, new Date(), horizonDays)
+      return {
+        ...result,
+        realBalance: result.realBalance + accountInitialBalance,
+        projectedBalance: result.projectedBalance + accountInitialBalance,
+      }
+    }
+
     return {
-      short: {
-        ...buildForecastSnapshot(operations.value, new Date(), 30),
-        realBalance: buildForecastSnapshot(operations.value, new Date(), 30).realBalance + accountInitialBalance,
-        projectedBalance: buildForecastSnapshot(operations.value, new Date(), 30).projectedBalance + accountInitialBalance,
-      },
-      medium: {
-        ...buildForecastSnapshot(operations.value, new Date(), 90),
-        realBalance: buildForecastSnapshot(operations.value, new Date(), 90).realBalance + accountInitialBalance,
-        projectedBalance: buildForecastSnapshot(operations.value, new Date(), 90).projectedBalance + accountInitialBalance,
-      },
-      long: {
-        ...buildForecastSnapshot(operations.value, new Date(), 365),
-        realBalance: buildForecastSnapshot(operations.value, new Date(), 365).realBalance + accountInitialBalance,
-        projectedBalance: buildForecastSnapshot(operations.value, new Date(), 365).projectedBalance + accountInitialBalance,
-      },
+      short: snapshot(30),
+      medium: snapshot(90),
+      long: snapshot(365),
     }
   })
 
-  const monthlyPlan = computed(() => buildMonthlyPlan(operations.value, new Date(), 3))
+  const monthlyPlan = computed(() => buildMonthlyPlan(projectedOperations.value, new Date(), 3))
 
   // 6 mois passés + mois en cours + 2 mois à venir, pour le graphique entrées / dépenses
-  const monthlyHistory = computed(() => buildMonthlyPlan(operations.value, subMonths(new Date(), 6), 9))
+  const monthlyHistory = computed(() => buildMonthlyPlan(projectedOperations.value, subMonths(new Date(), 6), 9))
 
   const nextMovements = computed(() =>
     [...operations.value]
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(0, 5),
   )
-
-  const upcomingRecurringOperations = computed(() => {
-    const start = new Date()
-    const end = addDays(start, 120)
-    return getRecurringOperationsInRange(recurrences.value, start, end)
-  })
 
   const setMode = async (mode: AppMode) => {
     appMode.value = mode
@@ -477,7 +487,7 @@ export const useFinanceStore = defineStore('finance', () => {
   // Mois ayant au moins une dépense, plus le mois en cours, du plus récent au plus ancien
   const expenseMonths = computed(() => {
     const months = new Set([currentMonthKey.value])
-    operations.value
+    projectedOperations.value
       .filter((operation) => operation.type === 'expense')
       .forEach((operation) => months.add(operation.date.slice(0, 7)))
     return [...months].sort((left, right) => right.localeCompare(left))
@@ -487,7 +497,7 @@ export const useFinanceStore = defineStore('finance', () => {
   const getExpenseBreakdown = (monthKey: string) => {
     const groups = new Map<string, number>()
 
-    operations.value
+    projectedOperations.value
       .filter((operation) => operation.type === 'expense' && operation.date.startsWith(monthKey))
       .forEach((operation) => {
         groups.set(operation.categoryId, (groups.get(operation.categoryId) ?? 0) + operation.amount)
@@ -560,6 +570,7 @@ export const useFinanceStore = defineStore('finance', () => {
     categoryById,
     getActualAmountForBudget,
     realBalance,
+    monthEndBalance,
     forecast,
     monthlyPlan,
     monthlyHistory,

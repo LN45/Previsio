@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { format, parseISO } from 'date-fns'
+import { formatMonthLabel } from '../lib/forecast'
 import { useFinanceStore } from '../stores/finance'
 
 const store = useFinanceStore()
 
 const expenseBreakdown = computed(() => store.getExpenseBreakdown(store.currentMonthKey))
+const monthLabel = computed(() => formatMonthLabel(store.currentMonthKey))
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('fr-FR', {
@@ -20,10 +22,17 @@ const formatCurrency = (value: number) =>
 <template>
   <main class="dashboard">
     <section class="top-summary">
-      <article class="stat-card featured">
-        <span>Solde actuel</span>
-        <strong :class="store.realBalance >= 0 ? 'positive' : 'negative'">{{ formatCurrency(store.realBalance) }}</strong>
-        <small>Montant disponible sur le compte principal</small>
+      <article class="stat-card featured balance-card">
+        <div class="balance-item">
+          <span>Solde compte</span>
+          <strong :class="store.realBalance >= 0 ? 'positive' : 'negative'">{{ formatCurrency(store.realBalance) }}</strong>
+          <small>Aujourd’hui</small>
+        </div>
+        <div class="balance-item">
+          <span>Fin de mois</span>
+          <strong :class="store.monthEndBalance >= 0 ? 'positive' : 'negative'">{{ formatCurrency(store.monthEndBalance) }}</strong>
+          <small>Prévision {{ monthLabel }}</small>
+        </div>
       </article>
 
       <section class="panel monthly-plan-panel">

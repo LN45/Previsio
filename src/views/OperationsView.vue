@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { useFinanceStore } from '../stores/finance'
 import type { Operation, OperationStatus, OperationType } from '../types/finance'
 
@@ -177,7 +177,7 @@ onMounted(async () => {
         <div v-for="item in store.operations" :key="item.id" class="row">
           <div>
             <strong>{{ item.description || 'Opération' }}</strong>
-            <small>{{ item.date }}</small>
+            <small>{{ format(parseISO(item.date), 'dd/MM/yyyy') }}</small>
           </div>
           <div class="row-amount">
             <span :class="item.type === 'income' ? 'positive' : 'negative'">

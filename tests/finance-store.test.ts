@@ -129,6 +129,56 @@ describe('finance store', () => {
     expect(store.expenseMonths).toEqual([...store.expenseMonths].sort().reverse())
   })
 
+  it('counts upcoming recurrence occurrences but not past ones', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-23T10:00:00'))
+    vi.spyOn(db.recurrences, 'add').mockImplementation(async (value) => value.id)
+
+    try {
+      const store = useFinanceStore()
+      await store.addRecurrence({
+        name: 'Loyer',
+        type: 'monthly',
+        startDate: '2026-09-05',
+        amount: 750,
+        categoryId: 'housing',
+        accountId: 'main',
+        operationType: 'expense',
+        description: 'Loyer',
+      })
+      await store.addRecurrence({
+        name: 'Abonnement',
+        type: 'monthly',
+        startDate: '2026-09-28',
+        amount: 20,
+        categoryId: 'leisure',
+        accountId: 'main',
+        operationType: 'expense',
+        description: 'Abonnement',
+      })
+      await store.addOperation({
+        type: 'expense',
+        amount: 750,
+        date: '2026-10-05',
+        categoryId: 'housing',
+        accountId: 'main',
+        status: 'real',
+        description: 'Loyer octobre payé',
+        isRecurring: true,
+      })
+
+      // Octobre : loyer saisi (750) + abonnement du 28 à venir (20) ; l'échéance passée du 5 n'est pas recomptée
+      expect(store.monthlyPlan[0].expense).toBe(770)
+      expect(store.monthlyPlan[1].expense).toBe(770)
+      expect(store.monthEndBalance).toBe(-770)
+      expect(store.realBalance).toBe(-750)
+      expect(store.getExpenseBreakdown('2026-11').total).toBe(770)
+      expect(store.operations).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('never writes to the database in demo mode', async () => {
     const store = useFinanceStore()
     await store.setMode('demo')

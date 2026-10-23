@@ -277,6 +277,23 @@ h1 {
   font-size: 0.82rem;
 }
 
+.balance-card {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  align-content: center;
+  gap: 20px;
+}
+
+.balance-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.balance-card.featured strong {
+  font-size: clamp(1.35rem, 2.4vw, 1.8rem);
+}
+
 .stat-card.secondary {
   opacity: 0.9;
 }
@@ -708,6 +725,10 @@ h1 {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.row-date {
+  white-space: nowrap;
 }
 
 .row-actions {

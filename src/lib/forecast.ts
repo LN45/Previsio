@@ -3,10 +3,10 @@ import {
   addMonths,
   addYears,
   format,
-  isAfter,
   isBefore,
   isSameDay,
   parseISO,
+  startOfDay,
 } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import type { ForecastSnapshot, Operation, Recurrence } from '../types/finance'
@@ -39,6 +39,19 @@ export function calculateRealBalanceAtDate(operations: Operation[], asOfDate: Da
     .reduce((total, operation) => total + operationSignedAmount(operation), 0)
 }
 
+// Solde attendu en fin de mois : opérations réelles passées + tout ce qui reste à passer dans le mois en cours
+export function calculateMonthEndBalance(operations: Operation[], asOfDate: Date): number {
+  const limit = normalizeDate(asOfDate)
+  const monthKey = format(limit, 'yyyy-MM')
+
+  const remainingThisMonth = operations
+    .filter((operation) => operation.date.startsWith(monthKey))
+    .filter((operation) => operation.status !== 'real' || normalizeDate(operation.date) > limit)
+    .reduce((total, operation) => total + operationSignedAmount(operation), 0)
+
+  return calculateRealBalanceAtDate(operations, limit) + remainingThisMonth
+}
+
 export function calculateProjectedBalance(
   operations: Operation[],
   asOfDate: Date,
@@ -48,13 +61,15 @@ export function calculateProjectedBalance(
   const end = addDays(start, horizonDays)
 
   const realBalance = calculateRealBalanceAtDate(operations, start)
+  // Une opération non réelle datée d'aujourd'hui reste à venir
+  const today = startOfDay(start)
   const futureOperations = operations.filter((operation) => {
     if (operation.status === 'real') {
       return false
     }
 
     const date = normalizeDate(operation.date)
-    return isAfter(date, start) && isBefore(date, end) || isSameDay(date, end)
+    return (date >= today && isBefore(date, end)) || isSameDay(date, end)
   })
 
   const futureTotal = futureOperations.reduce((total, operation) => total + operationSignedAmount(operation), 0)
@@ -175,11 +190,12 @@ export function buildForecastSnapshot(
 
   const realBalance = calculateRealBalanceAtDate(operations, from)
   const projectedBalance = calculateProjectedBalance(operations, from, horizonDays)
+  const today = startOfDay(from)
   const futureOperationsTotal = operations
     .filter((operation) => operation.status !== 'real')
     .filter((operation) => {
       const date = normalizeDate(operation.date)
-      return date > from && date <= to
+      return date >= today && date <= to
     })
     .reduce((total, operation) => total + operationSignedAmount(operation), 0)
 

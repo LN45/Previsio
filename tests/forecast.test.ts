@@ -3,6 +3,7 @@ import { addDays, parseISO } from 'date-fns'
 import {
   buildForecastSnapshot,
   buildMonthlyPlan,
+  calculateMonthEndBalance,
   calculateProjectedBalance,
   calculateRealBalanceAtDate,
   generateRecurringOccurrences,
@@ -132,6 +133,20 @@ describe('financial forecast engine', () => {
     expect(plan[1].net).toBe(1250)
     expect(plan[2].label).toBe('déc. 2026')
     expect(plan[2].net).toBe(1400)
+  })
+
+  it('computes the month-end balance from past real operations and everything left in the month', () => {
+    const operations = [
+      { id: 'o1', type: 'income', amount: 2500, date: '2026-10-01', categoryId: 'salary', accountId: 'main', status: 'real', description: 'Salaire', isRecurring: true, createdAt: '', updatedAt: '' },
+      { id: 'o2', type: 'expense', amount: 1200, date: '2026-10-05', categoryId: 'housing', accountId: 'main', status: 'real', description: 'Loyer', isRecurring: true, createdAt: '', updatedAt: '' },
+      { id: 'o3', type: 'expense', amount: 180, date: '2026-10-25', categoryId: 'food', accountId: 'main', status: 'planned', description: 'Courses', isRecurring: false, createdAt: '', updatedAt: '' },
+      { id: 'o4', type: 'expense', amount: 40, date: '2026-10-10', categoryId: 'food', accountId: 'main', status: 'estimated', description: 'Restaurant non confirmé', isRecurring: false, createdAt: '', updatedAt: '' },
+      { id: 'o5', type: 'expense', amount: 60, date: '2026-10-28', categoryId: 'transport', accountId: 'main', status: 'real', description: 'Train déjà réservé', isRecurring: false, createdAt: '', updatedAt: '' },
+      { id: 'o6', type: 'expense', amount: 999, date: '2026-11-02', categoryId: 'food', accountId: 'main', status: 'planned', description: 'Mois suivant', isRecurring: false, createdAt: '', updatedAt: '' },
+      { id: 'o7', type: 'expense', amount: 500, date: '2026-09-20', categoryId: 'food', accountId: 'main', status: 'planned', description: 'Ancien prévu jamais confirmé', isRecurring: false, createdAt: '', updatedAt: '' },
+    ]
+
+    expect(calculateMonthEndBalance(operations, parseISO('2026-10-23T10:00:00'))).toBe(2500 - 1200 - 180 - 40 - 60)
   })
 
   it('keeps decimal values when calculating entries and expenses', () => {
