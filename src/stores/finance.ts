@@ -491,7 +491,7 @@ export const useFinanceStore = defineStore('finance', () => {
   const expenseMonths = computed(() => {
     const months = new Set([currentMonthKey.value])
     projectedOperations.value
-      .filter((operation) => operation.type === 'expense')
+      .filter((operation) => operation.type === 'expense' && /^\d{4}-\d{2}/.test(operation.date))
       .forEach((operation) => months.add(operation.date.slice(0, 7)))
     return [...months].sort((left, right) => right.localeCompare(left))
   })

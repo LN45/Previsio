@@ -49,4 +49,36 @@ const router = createRouter({
   ],
 })
 
+// Après une mise à jour de l'application, un écran chargé à la demande peut pointer vers un fichier
+// qui n'existe plus : on recharge alors la page sur l'écran demandé pour récupérer la nouvelle version.
+const RELOAD_KEY = 'previsio-chunk-reload'
+
+router.onError((error, to) => {
+  const message = error instanceof Error ? error.message : String(error)
+  if (!/dynamically imported module|Importing a module script failed|Failed to fetch/i.test(message)) {
+    return
+  }
+
+  // Un seul rechargement par session, pour ne pas boucler si le fichier reste introuvable (hors connexion)
+  try {
+    if (sessionStorage.getItem(RELOAD_KEY)) {
+      return
+    }
+    sessionStorage.setItem(RELOAD_KEY, '1')
+  } catch {
+    return
+  }
+
+  window.location.hash = to.fullPath
+  window.location.reload()
+})
+
+router.afterEach(() => {
+  try {
+    sessionStorage.removeItem(RELOAD_KEY)
+  } catch {
+    // stockage indisponible : rien à nettoyer
+  }
+})
+
 export default router
