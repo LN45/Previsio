@@ -1,10 +1,21 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { format, parseISO } from 'date-fns'
 import { backupFileName } from '../lib/backup'
 import { useFinanceStore } from '../stores/finance'
+import type { SavingsDirection } from '../types/finance'
 
 const store = useFinanceStore()
 const accountInput = ref(0)
+const savingsInput = ref(0)
+const today = () => format(new Date(), 'yyyy-MM-dd')
+const transferForm = ref<{ direction: SavingsDirection; amount: number; date: string; description: string }>({
+  direction: 'deposit',
+  amount: 0,
+  date: today(),
+  description: '',
+})
+const savingsError = ref('')
 const importInput = ref<HTMLInputElement | null>(null)
 const pendingImport = ref<string | null>(null)
 const backupMessage = ref('')
@@ -20,6 +31,31 @@ watch(
 
 const saveAccountBalance = async () => {
   await store.setInitialBalance(accountInput.value)
+}
+
+watch(
+  () => store.savingsBalance,
+  (value) => {
+    savingsInput.value = value
+  },
+  { immediate: true },
+)
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(value)
+
+const saveSavingsBalance = async () => {
+  await store.setSavingsBalance(savingsInput.value)
+}
+
+const submitTransfer = async () => {
+  savingsError.value = ''
+  try {
+    await store.transferSavings(transferForm.value.direction, transferForm.value)
+    transferForm.value = { direction: transferForm.value.direction, amount: 0, date: today(), description: '' }
+  } catch (error) {
+    savingsError.value = error instanceof Error ? error.message : 'Virement impossible.'
+  }
 }
 
 const exportData = async () => {
@@ -84,6 +120,78 @@ const confirmImport = async () => {
       </div>
 
       <p class="muted">Le solde affiché inclut ce montant de départ et les mouvements déjà saisis.</p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Épargne</h2>
+        <span>{{ formatCurrency(store.savingsBalance) }} de côté</span>
+      </div>
+
+      <div class="form-grid">
+        <label class="field field-wide">
+          <span>Montant actuel de l’épargne</span>
+          <input v-model.number="savingsInput" type="number" step="0.01" min="0" placeholder="0" />
+        </label>
+      </div>
+
+      <div class="form-actions account-actions">
+        <button class="primary-button" type="button" @click="saveSavingsBalance">Enregistrer l’épargne</button>
+      </div>
+
+      <p class="muted">
+        L’épargne ne compte pas dans le solde du compte. Un virement crée une opération réelle sur le compte :
+        une dépense quand tu mets de l’argent de côté, un revenu quand tu en reprends.
+      </p>
+
+      <form class="form-grid" @submit.prevent="submitTransfer">
+        <label class="field">
+          <span>Virement</span>
+          <select v-model="transferForm.direction">
+            <option value="deposit">Du compte vers l’épargne</option>
+            <option value="withdrawal">De l’épargne vers le compte</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Montant</span>
+          <input v-model.number="transferForm.amount" type="number" min="0" step="0.01" />
+        </label>
+
+        <label class="field">
+          <span>Date</span>
+          <input v-model="transferForm.date" type="date" />
+        </label>
+
+        <label class="field">
+          <span>Description</span>
+          <input v-model="transferForm.description" type="text" placeholder="Facultatif" />
+        </label>
+
+        <div class="form-actions">
+          <button class="primary-button" type="submit">Enregistrer le virement</button>
+        </div>
+      </form>
+
+      <p v-if="savingsError" class="backup-error" role="alert">{{ savingsError }}</p>
+
+      <div v-if="store.savingsTransfers.length" class="operation-table">
+        <div v-for="item in store.savingsTransfers" :key="item.id" class="row">
+          <div>
+            <strong>{{ item.description }}</strong>
+            <small>{{ format(parseISO(item.date), 'dd/MM/yyyy') }}</small>
+          </div>
+          <div class="row-amount">
+            <!-- Point de vue de l'épargne : un virement vers l'épargne l'augmente -->
+            <span :class="item.type === 'expense' ? 'positive' : 'negative'">
+              {{ item.type === 'expense' ? '+' : '-' }}{{ formatCurrency(item.amount) }}
+            </span>
+            <div class="row-actions">
+              <button class="delete-button" type="button" @click="store.deleteOperation(item.id)">Supprimer</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section class="panel">

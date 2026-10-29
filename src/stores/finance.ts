@@ -15,9 +15,28 @@ import {
 import { sampleBudgets, sampleCategories, sampleOperations, sampleRecurrences } from '../data/sampleData'
 import { createBackup, parseBackup, type BackupFile } from '../lib/backup'
 import { db } from '../lib/db'
-import type { Account, Budget, Category, Operation, OperationType, Recurrence, RecurrenceType } from '../types/finance'
+import type {
+  Account,
+  Budget,
+  Category,
+  Operation,
+  OperationType,
+  Recurrence,
+  RecurrenceType,
+  SavingsDirection,
+} from '../types/finance'
 
 const STORAGE_KEY = 'previsio-app-mode'
+
+// Catégorie fixe des virements d'épargne : non modifiable, absente de l'écran Catégories
+export const SAVINGS_CATEGORY: Category = {
+  id: 'savings',
+  name: 'Épargne',
+  type: 'expense',
+  color: '#b9a6ff',
+  createdAt: '',
+  updatedAt: '',
+}
 
 const getStoredMode = (): AppMode => {
   if (typeof window === 'undefined') {
@@ -82,6 +101,7 @@ export const useFinanceStore = defineStore('finance', () => {
         ...createDefaultAccount(),
         name: 'Compte de démonstration',
         initialBalance: 2500,
+        savingsInitialBalance: 5000,
       }
       accountLoaded.value = true
       return
@@ -145,6 +165,7 @@ export const useFinanceStore = defineStore('finance', () => {
     status: Operation['status']
     description: string
     isRecurring: boolean
+    savingsTransfer?: boolean
   }) => {
     const operation: Operation = {
       id: crypto.randomUUID(),
@@ -185,6 +206,7 @@ export const useFinanceStore = defineStore('finance', () => {
       description: payload.description,
       isRecurring: payload.isRecurring,
       recurrenceId: current?.recurrenceId,
+      savingsTransfer: current?.savingsTransfer,
       createdAt: current?.createdAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
@@ -337,7 +359,8 @@ export const useFinanceStore = defineStore('finance', () => {
     return updated
   }
 
-  const categoryById = (id: string) => categories.value.find((category) => category.id === id)
+  const categoryById = (id: string) =>
+    id === SAVINGS_CATEGORY.id ? SAVINGS_CATEGORY : categories.value.find((category) => category.id === id)
 
   const addBudget = async (payload: { categoryId: string; month: string; plannedAmount: number }) => {
     const existing = budgets.value.find(
@@ -405,6 +428,59 @@ export const useFinanceStore = defineStore('finance', () => {
   const realBalance = computed(
     () => (account.value?.initialBalance ?? 0) + calculateRealBalanceAtDate(operations.value, new Date()),
   )
+
+  // Virements d'épargne, du plus récent au plus ancien
+  const savingsTransfers = computed(() =>
+    operations.value
+      .filter((operation) => operation.savingsTransfer)
+      .sort((left, right) => right.date.localeCompare(left.date)),
+  )
+
+  // Ce qui sort du compte entre dans l'épargne, et inversement
+  const savingsBalance = computed(
+    () =>
+      (account.value?.savingsInitialBalance ?? 0) -
+      calculateRealBalanceAtDate(savingsTransfers.value, new Date()),
+  )
+
+  // Enregistre le montant actuel de l'épargne, compte tenu des virements déjà passés
+  const setSavingsBalance = async (value: number) => {
+    const amount = Number.isFinite(value) ? Math.max(0, value) : 0
+    const nextAccount = {
+      ...(account.value ?? createDefaultAccount()),
+      savingsInitialBalance: amount + calculateRealBalanceAtDate(savingsTransfers.value, new Date()),
+      updatedAt: new Date().toISOString(),
+    }
+
+    await persist(() => db.accounts.put(nextAccount))
+    account.value = nextAccount
+    return nextAccount
+  }
+
+  // deposit : du compte vers l'épargne (dépense du compte) ; withdrawal : de l'épargne vers le compte (revenu)
+  const transferSavings = async (direction: SavingsDirection, payload: { amount: number; date: string; description?: string }) => {
+    const amount = Number(payload.amount)
+    if (!(amount > 0)) {
+      throw new Error('Le montant doit être supérieur à 0.')
+    }
+
+    if (direction === 'withdrawal' && amount > savingsBalance.value) {
+      throw new Error('Le montant dépasse l’épargne disponible.')
+    }
+
+    return addOperation({
+      type: direction === 'deposit' ? 'expense' : 'income',
+      amount,
+      date: payload.date,
+      categoryId: SAVINGS_CATEGORY.id,
+      accountId: account.value?.id ?? 'main',
+      status: 'real',
+      description:
+        payload.description?.trim() || (direction === 'deposit' ? 'Virement vers l’épargne' : 'Virement depuis l’épargne'),
+      isRecurring: false,
+      savingsTransfer: true,
+    })
+  }
 
   // Échéances des récurrences à partir de demain et sur un an, traitées comme des opérations prévues.
   // Celles arrivées à date sont déjà enregistrées comme opérations réelles (voir settleDueRecurrences).
@@ -622,6 +698,10 @@ export const useFinanceStore = defineStore('finance', () => {
     categoryById,
     getActualAmountForBudget,
     realBalance,
+    savingsTransfers,
+    savingsBalance,
+    setSavingsBalance,
+    transferSavings,
     monthEndBalance,
     forecast,
     monthlyPlan,

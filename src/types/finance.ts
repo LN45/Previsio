@@ -15,6 +15,8 @@ export interface Account {
   id: string
   name: string
   initialBalance: number
+  // Épargne mise de côté, hors virements enregistrés (voir savingsTransfer)
+  savingsInitialBalance?: number
   currency: string
   createdAt: string
   updatedAt: string
@@ -31,9 +33,13 @@ export interface Operation {
   description: string
   isRecurring: boolean
   recurrenceId?: string
+  // Virement entre le compte et l'épargne : dépense = vers l'épargne, revenu = depuis l'épargne
+  savingsTransfer?: boolean
   createdAt: string
   updatedAt: string
 }
+
+export type SavingsDirection = 'deposit' | 'withdrawal'
 
 export interface Recurrence {
   id: string

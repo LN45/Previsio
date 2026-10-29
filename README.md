@@ -56,7 +56,19 @@ Le plan mensuel, la fin de mois, les prévisions, la répartition des dépenses 
 - définition du solde initial,
 - mise à jour du solde principal,
 - suivi des données liées au compte réel ou démo,
+- épargne mise de côté (voir ci-dessous),
 - export et import de toutes les données réelles dans un fichier de sauvegarde.
+
+#### Épargne
+
+La section **Épargne** de l’écran Compte principal est le seul endroit où l’épargne se consulte et s’enregistre ; elle n’apparaît pas sur le dashboard et ne compte pas dans le solde du compte.
+
+- **montant actuel de l’épargne** : à saisir et enregistrer à tout moment (le montant tient compte des virements déjà passés),
+- **virement du compte vers l’épargne** : crée une dépense « réelle » sur le compte (catégorie « Épargne ») et augmente l’épargne d’autant,
+- **virement de l’épargne vers le compte** : crée un revenu « réel » sur le compte et diminue l’épargne d’autant (impossible au-delà de l’épargne disponible),
+- historique des virements, avec suppression.
+
+Les virements apparaissent dans les opérations et comptent dans le plan mensuel, les dépenses et les graphiques comme les autres opérations. Ils se suppriment depuis l’écran Opérations ou la section Épargne (l’épargne est alors corrigée), mais ne se modifient pas : il suffit de supprimer le virement et d’en saisir un nouveau. Seuls les virements datés d’aujourd’hui ou avant comptent dans l’épargne.
 
 ### 3. Opérations
 

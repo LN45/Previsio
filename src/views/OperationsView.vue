@@ -177,14 +177,19 @@ onMounted(async () => {
         <div v-for="item in store.operations" :key="item.id" class="row">
           <div>
             <strong>{{ item.description || 'Opération' }}</strong>
-            <small>{{ format(parseISO(item.date), 'dd/MM/yyyy') }}</small>
+            <small>
+              {{ format(parseISO(item.date), 'dd/MM/yyyy') }}<template v-if="item.savingsTransfer"> · Épargne</template>
+            </small>
           </div>
           <div class="row-amount">
             <span :class="item.type === 'income' ? 'positive' : 'negative'">
               {{ item.type === 'income' ? '+' : '-' }}{{ formatCurrency(item.amount) }}
             </span>
             <div class="row-actions">
-              <button class="secondary-button" type="button" @click="startEditing(item)">Modifier</button>
+              <!-- Les virements d'épargne se gèrent depuis Compte principal › Épargne -->
+              <button v-if="!item.savingsTransfer" class="secondary-button" type="button" @click="startEditing(item)">
+                Modifier
+              </button>
               <button class="delete-button" @click="store.deleteOperation(item.id)">Supprimer</button>
             </div>
           </div>

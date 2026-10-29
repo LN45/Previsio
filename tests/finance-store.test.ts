@@ -222,6 +222,33 @@ describe('finance store', () => {
     }
   })
 
+  it('moves money between the account and the savings', async () => {
+    const store = useFinanceStore()
+    await store.setSavingsBalance(1000)
+    expect(store.savingsBalance).toBe(1000)
+
+    const today = new Date().toISOString().slice(0, 10)
+    await store.transferSavings('deposit', { amount: 200, date: today })
+    expect(store.savingsBalance).toBe(1200)
+    expect(store.realBalance).toBe(-200)
+    expect(store.operations[0]).toMatchObject({ type: 'expense', status: 'real', categoryId: 'savings', savingsTransfer: true })
+    expect(store.getExpenseBreakdown(today.slice(0, 7)).items[0]).toMatchObject({ label: 'Épargne', total: 200 })
+
+    await store.transferSavings('withdrawal', { amount: 500, date: today })
+    expect(store.savingsBalance).toBe(700)
+    expect(store.realBalance).toBe(300)
+    await expect(store.transferSavings('withdrawal', { amount: 701, date: today })).rejects.toThrow()
+
+    // Ressaisir le montant de l'épargne tient compte des virements déjà passés
+    await store.setSavingsBalance(900)
+    expect(store.savingsBalance).toBe(900)
+
+    // Supprimer un virement le retire aussi de l'épargne
+    vi.spyOn(db.operations, 'delete').mockResolvedValue(undefined)
+    await store.deleteOperation(store.operations[0].id)
+    expect(store.savingsBalance).toBe(1400)
+  })
+
   it('never writes to the database in demo mode', async () => {
     const store = useFinanceStore()
     await store.setMode('demo')
