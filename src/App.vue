@@ -14,6 +14,7 @@ onMounted(async () => {
   await store.loadOperations()
   await store.loadRecurrences()
   await store.loadAccount()
+  await store.settleDueRecurrences()
 })
 
 const resetDemo = async () => {

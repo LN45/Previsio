@@ -84,9 +84,11 @@ Le plan mensuel, la fin de mois, les prévisions, la répartition des dépenses 
 - gestion des montants et dates de départ,
 - modification et suppression des règles récurrentes.
 
-Les échéances des règles actives sont calculées automatiquement et comptées comme des opérations « prévues » dans le plan mensuel, la fin de mois, les prévisions, la répartition des dépenses et les graphiques. Elles ne sont jamais enregistrées comme opérations : modifier ou supprimer une règle met tous les calculs à jour immédiatement.
+Les échéances **à venir** (à partir de demain, sur un an) des règles actives sont calculées automatiquement et comptées comme des opérations « prévues » dans le plan mensuel, la fin de mois, les prévisions, la répartition des dépenses et les graphiques. Elles ne sont pas enregistrées : modifier ou supprimer une règle met ces calculs à jour immédiatement.
 
-Seules les échéances **à partir d’aujourd’hui** sont comptées (sur un an). Pour le passé, seules les opérations saisies comptent : une fois le loyer payé, on le saisit comme opération « réelle » et l’échéance correspondante, désormais passée, n’est pas comptée une seconde fois.
+Le jour de son échéance, une occurrence **devient une opération « réelle » enregistrée** (à l’ouverture de l’application ou à l’enregistrement de la règle) : elle apparaît dans les opérations et se déduit du solde compte. On peut ensuite la modifier (montant réellement prélevé, par exemple) ou la supprimer ; une occurrence supprimée n’est pas recréée. Supprimer la règle conserve les opérations déjà passées.
+
+Les échéances antérieures à la création de la règle ne sont pas rattrapées : le solde de départ du compte est censé en tenir compte. Il en va de même quand on change la date de départ ou la fréquence d’une règle, ou qu’on la réactive.
 
 Les budgets, eux, comparent le montant prévu aux seules opérations saisies.
 
@@ -251,7 +253,7 @@ C’est le moyen de conserver ses données ou de les transférer d’un appareil
 2. Définir le solde initial du compte principal.
 3. Ajouter les catégories nécessaires.
 4. Enregistrer les revenus et dépenses déjà passés avec le statut « réelle ».
-5. Ajouter les récurrences (loyer, abonnements, salaire…) : leurs échéances à venir sont comptées automatiquement.
+5. Ajouter les récurrences (loyer, abonnements, salaire…) : leurs échéances à venir sont comptées automatiquement, puis enregistrées comme opérations réelles le jour venu.
 6. Saisir les autres opérations à venir avec le statut « prévue » ou « estimée ».
 7. Définir les budgets mensuels.
 8. Consulter le dashboard : solde compte, fin de mois et prévisions.

@@ -179,6 +179,49 @@ describe('finance store', () => {
     }
   })
 
+  it('turns due recurrence occurrences into real operations deducted from the balance', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-05T08:00:00'))
+    vi.spyOn(db.recurrences, 'add').mockImplementation(async (value) => value.id)
+    vi.spyOn(db.recurrences, 'put').mockImplementation(async (value) => value.id)
+    vi.spyOn(db.operations, 'bulkPut').mockImplementation(async () => '')
+    vi.spyOn(db.operations, 'delete').mockResolvedValue(undefined)
+
+    try {
+      const store = useFinanceStore()
+      const recurrence = await store.addRecurrence({
+        name: 'Loyer',
+        type: 'monthly',
+        startDate: '2026-09-05',
+        amount: 750,
+        categoryId: 'housing',
+        accountId: 'main',
+        operationType: 'expense',
+        description: 'Loyer',
+      })
+
+      // Échéance du jour : enregistrée comme opération réelle, pas d'échéance de septembre rattrapée
+      expect(store.operations).toHaveLength(1)
+      expect(store.operations[0]).toMatchObject({ date: '2026-10-05', status: 'real', recurrenceId: recurrence.id })
+      expect(store.realBalance).toBe(-750)
+      expect(store.monthlyPlan[0].expense).toBe(750)
+      expect(recurrence.nextDate).toBe('2026-11-05')
+
+      // Le mois suivant, l'échéance du 5 novembre bascule à son tour
+      vi.setSystemTime(new Date('2026-11-06T08:00:00'))
+      await store.settleDueRecurrences()
+      expect(store.operations.map((operation) => operation.date)).toEqual(['2026-11-05', '2026-10-05'])
+      expect(store.realBalance).toBe(-1500)
+
+      // Une échéance supprimée n'est pas recréée
+      await store.deleteOperation(store.operations[0].id)
+      await store.settleDueRecurrences()
+      expect(store.operations).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('never writes to the database in demo mode', async () => {
     const store = useFinanceStore()
     await store.setMode('demo')

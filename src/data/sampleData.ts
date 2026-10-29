@@ -69,7 +69,8 @@ export const sampleOperations: Operation[] = [
     updatedAt: date(-20),
   },
   {
-    id: 'rent-1',
+    // Échéance déjà passée de la récurrence « rent » (même id que celui généré, donc pas de doublon)
+    id: `rent-${date(-9)}`,
     type: 'expense',
     amount: 1250,
     date: date(-9),
@@ -78,6 +79,7 @@ export const sampleOperations: Operation[] = [
     status: 'real',
     description: 'Loyer',
     isRecurring: true,
+    recurrenceId: 'rent',
     createdAt: date(-15),
     updatedAt: date(-15),
   },

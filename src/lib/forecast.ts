@@ -104,16 +104,34 @@ export function generateRecurringOccurrences(
       })
     }
 
-    if (recurrence.type === 'monthly') {
-      cursor = addMonths(cursor, 1)
-    } else if (recurrence.type === 'quarterly') {
-      cursor = addMonths(cursor, 3)
-    } else {
-      cursor = addYears(cursor, 1)
-    }
+    cursor = nextOccurrence(recurrence, cursor)
   }
 
   return occurrences
+}
+
+const nextOccurrence = (recurrence: Pick<Recurrence, 'type'>, cursor: Date): Date => {
+  if (recurrence.type === 'monthly') {
+    return addMonths(cursor, 1)
+  }
+
+  if (recurrence.type === 'quarterly') {
+    return addMonths(cursor, 3)
+  }
+
+  return addYears(cursor, 1)
+}
+
+// Première échéance de la règle datée au plus tôt du jour `from`, au format 'yyyy-MM-dd'
+export function firstOccurrenceOnOrAfter(recurrence: Pick<Recurrence, 'type' | 'startDate'>, from: Date): string {
+  const limit = startOfDay(normalizeDate(from))
+  let cursor = normalizeDate(recurrence.startDate)
+
+  while (cursor < limit) {
+    cursor = nextOccurrence(recurrence, cursor)
+  }
+
+  return format(cursor, 'yyyy-MM-dd')
 }
 
 export function getRecurringOperationsInRange(

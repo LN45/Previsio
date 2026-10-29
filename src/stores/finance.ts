@@ -1,4 +1,4 @@
-import { addDays, format, subMonths } from 'date-fns'
+import { addDays, format, parseISO, startOfDay, subMonths } from 'date-fns'
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { type AppMode, getModeOptions } from '../lib/demo'
@@ -7,7 +7,9 @@ import {
   buildMonthlyPlan,
   calculateMonthEndBalance,
   calculateRealBalanceAtDate,
+  firstOccurrenceOnOrAfter,
   formatMonthLabel,
+  generateRecurringOccurrences,
   getRecurringOperationsInRange,
 } from '../lib/forecast'
 import { sampleBudgets, sampleCategories, sampleOperations, sampleRecurrences } from '../data/sampleData'
@@ -205,7 +207,8 @@ export const useFinanceStore = defineStore('finance', () => {
     const recurrence: Recurrence = {
       id: crypto.randomUUID(),
       ...payload,
-      nextDate: payload.startDate,
+      // Les échéances antérieures à la création ne sont pas rattrapées : le solde de départ en tient déjà compte
+      nextDate: firstOccurrenceOnOrAfter(payload, new Date()),
       isActive: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -213,7 +216,8 @@ export const useFinanceStore = defineStore('finance', () => {
 
     await persist(() => db.recurrences.add(recurrence))
     recurrences.value = [recurrence, ...recurrences.value]
-    return recurrence
+    await settleDueRecurrences()
+    return recurrences.value.find((item) => item.id === recurrence.id) ?? recurrence
   }
 
   const updateRecurrence = async (id: string, payload: {
@@ -228,25 +232,68 @@ export const useFinanceStore = defineStore('finance', () => {
     isActive?: boolean
   }) => {
     const current = recurrences.value.find((recurrence) => recurrence.id === id)
+    const isActive = payload.isActive ?? current?.isActive ?? true
+    // Nouveau calendrier ou règle réactivée : on repart de la prochaine échéance, sans rattraper le passé
+    const restart =
+      current?.startDate !== payload.startDate ||
+      current.type !== payload.type ||
+      (isActive && !current?.isActive)
     const updated: Recurrence = {
       id,
       name: payload.name,
       type: payload.type,
       startDate: payload.startDate,
-      nextDate: payload.startDate,
+      nextDate: restart || !current ? firstOccurrenceOnOrAfter(payload, new Date()) : current.nextDate,
       amount: payload.amount,
       categoryId: payload.categoryId,
       accountId: payload.accountId,
       operationType: payload.operationType,
       description: payload.description,
-      isActive: payload.isActive ?? current?.isActive ?? true,
+      isActive,
       createdAt: current?.createdAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
 
     await persist(() => db.recurrences.put(updated))
     recurrences.value = recurrences.value.map((recurrence) => (recurrence.id === id ? updated : recurrence))
-    return updated
+    await settleDueRecurrences()
+    return recurrences.value.find((recurrence) => recurrence.id === id) ?? updated
+  }
+
+  // Les échéances arrivées à date (aujourd'hui compris) deviennent des opérations réelles enregistrées,
+  // modifiables et supprimables comme les autres. nextDate retient la prochaine échéance à générer,
+  // ce qui évite de recréer une échéance supprimée. L'id `<règle>-<date>` évite les doublons.
+  const settleDueRecurrences = async () => {
+    const now = new Date()
+    const tomorrow = addDays(startOfDay(now), 1)
+
+    for (const recurrence of recurrences.value) {
+      if (!recurrence.isActive) {
+        continue
+      }
+
+      // Anciennes règles (nextDate = date de départ) : pas de rattrapage avant leur création
+      const nextDate = parseISO(recurrence.nextDate)
+      const createdDay = startOfDay(parseISO(recurrence.createdAt))
+      const from = nextDate > createdDay ? nextDate : createdDay
+
+      const timestamp = now.toISOString()
+      const due: Operation[] = generateRecurringOccurrences(recurrence, from, now)
+        .filter((occurrence) => !operations.value.some((operation) => operation.id === occurrence.id))
+        .map((occurrence) => ({ ...occurrence, status: 'real', createdAt: timestamp, updatedAt: timestamp }))
+      const followingDate = firstOccurrenceOnOrAfter(recurrence, tomorrow)
+
+      if (due.length) {
+        await persist(() => db.operations.bulkPut(due))
+        operations.value = [...due, ...operations.value]
+      }
+
+      if (followingDate !== recurrence.nextDate) {
+        const updated = { ...recurrence, nextDate: followingDate }
+        await persist(() => db.recurrences.put(updated))
+        recurrences.value = recurrences.value.map((item) => (item.id === recurrence.id ? updated : item))
+      }
+    }
   }
 
   const deleteRecurrence = async (id: string) => {
@@ -359,10 +406,10 @@ export const useFinanceStore = defineStore('finance', () => {
     () => (account.value?.initialBalance ?? 0) + calculateRealBalanceAtDate(operations.value, new Date()),
   )
 
-  // Échéances des récurrences à partir d'aujourd'hui et sur un an, traitées comme des opérations prévues.
-  // Les échéances passées ne comptent pas : seules les opérations saisies font foi pour le passé.
+  // Échéances des récurrences à partir de demain et sur un an, traitées comme des opérations prévues.
+  // Celles arrivées à date sont déjà enregistrées comme opérations réelles (voir settleDueRecurrences).
   const upcomingRecurringOperations = computed<Operation[]>(() => {
-    const start = new Date()
+    const start = addDays(startOfDay(new Date()), 1)
     return getRecurringOperationsInRange(recurrences.value, start, addDays(start, 366)).map((occurrence) => ({
       ...occurrence,
       createdAt: '',
@@ -422,6 +469,7 @@ export const useFinanceStore = defineStore('finance', () => {
     await loadOperations()
     await loadRecurrences()
     await loadAccount()
+    await settleDueRecurrences()
   }
 
   // Recharge les données d'exemple en mémoire, sans toucher à la base
@@ -564,6 +612,7 @@ export const useFinanceStore = defineStore('finance', () => {
     addRecurrence,
     updateRecurrence,
     deleteRecurrence,
+    settleDueRecurrences,
     addCategory,
     updateCategory,
     deleteCategory,
