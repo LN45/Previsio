@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { format, parseISO } from 'date-fns'
+import { paymentMethodLabels } from '../lib/labels'
 import { useFinanceStore } from '../stores/finance'
-import type { OperationType, Recurrence, RecurrenceType } from '../types/finance'
+import type { OperationType, PaymentMethod, Recurrence, RecurrenceType } from '../types/finance'
 
 const store = useFinanceStore()
 
@@ -16,6 +17,7 @@ const form = ref<{
   categoryId: string
   accountId: string
   operationType: OperationType
+  paymentMethod?: PaymentMethod
   description: string
 }>({
   name: '',
@@ -25,6 +27,7 @@ const form = ref<{
   categoryId: 'housing',
   accountId: 'main',
   operationType: 'expense',
+  paymentMethod: 'direct_debit',
   description: '',
 })
 
@@ -58,6 +61,7 @@ const resetForm = () => {
     categoryId: 'housing',
     accountId: 'main',
     operationType: 'expense',
+    paymentMethod: 'direct_debit',
     description: '',
   }
 }
@@ -67,28 +71,22 @@ const submit = async () => {
     return
   }
 
+  const payload = {
+    name: form.value.name,
+    type: form.value.type,
+    startDate: form.value.startDate,
+    amount: Number(form.value.amount),
+    categoryId: form.value.categoryId,
+    accountId: form.value.accountId,
+    operationType: form.value.operationType,
+    paymentMethod: form.value.paymentMethod,
+    description: form.value.description,
+  }
+
   if (editingId.value) {
-    await store.updateRecurrence(editingId.value, {
-      name: form.value.name,
-      type: form.value.type,
-      startDate: form.value.startDate,
-      amount: Number(form.value.amount),
-      categoryId: form.value.categoryId,
-      accountId: form.value.accountId,
-      operationType: form.value.operationType,
-      description: form.value.description,
-    })
+    await store.updateRecurrence(editingId.value, payload)
   } else {
-    await store.addRecurrence({
-      name: form.value.name,
-      type: form.value.type,
-      startDate: form.value.startDate,
-      amount: Number(form.value.amount),
-      categoryId: form.value.categoryId,
-      accountId: form.value.accountId,
-      operationType: form.value.operationType,
-      description: form.value.description,
-    })
+    await store.addRecurrence(payload)
   }
 
   resetForm()
@@ -104,6 +102,7 @@ const startEditing = (item: Recurrence) => {
     categoryId: item.categoryId,
     accountId: item.accountId,
     operationType: item.operationType,
+    paymentMethod: item.paymentMethod,
     description: item.description,
   }
 }
@@ -163,6 +162,13 @@ onMounted(async () => {
           </select>
         </label>
 
+        <label class="field">
+          <span>Moyen de paiement</span>
+          <select v-model="form.paymentMethod">
+            <option v-for="(label, value) in paymentMethodLabels" :key="value" :value="value">{{ label }}</option>
+          </select>
+        </label>
+
         <label class="field field-wide">
           <span>Description</span>
           <input v-model="form.description" type="text" placeholder="Ex: Loyer mensuel de l'appartement" />
@@ -190,6 +196,7 @@ onMounted(async () => {
             <small class="recurrence-meta">
               <template v-if="item.description">{{ item.description }}</template>
               <span class="recurrence-frequency">{{ frequencyLabels[item.type] }}</span>
+              <template v-if="item.paymentMethod">{{ paymentMethodLabels[item.paymentMethod] }}</template>
             </small>
           </div>
 

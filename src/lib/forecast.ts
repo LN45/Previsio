@@ -77,12 +77,17 @@ export function calculateProjectedBalance(
   return realBalance + futureTotal
 }
 
+export type RecurringOccurrence = Omit<Operation, 'createdAt' | 'updatedAt' | 'savingsTransfer'> & {
+  isRecurring: true
+  recurrenceId: string
+}
+
 export function generateRecurringOccurrences(
   recurrence: Recurrence,
   startDate: Date,
   endDate: Date,
-): Array<{ id: string; type: Operation['type']; amount: number; date: string; categoryId: string; accountId: string; status: Operation['status']; description: string; isRecurring: true; recurrenceId: string }> {
-  const occurrences: Array<{ id: string; type: Operation['type']; amount: number; date: string; categoryId: string; accountId: string; status: Operation['status']; description: string; isRecurring: true; recurrenceId: string }> = []
+): RecurringOccurrence[] {
+  const occurrences: RecurringOccurrence[] = []
 
   const rangeStart = normalizeDate(startDate)
   const rangeEnd = normalizeDate(endDate)
@@ -98,6 +103,7 @@ export function generateRecurringOccurrences(
         categoryId: recurrence.categoryId,
         accountId: recurrence.accountId,
         status: 'planned',
+        paymentMethod: recurrence.paymentMethod,
         description: recurrence.description,
         isRecurring: true,
         recurrenceId: recurrence.id,
@@ -138,7 +144,7 @@ export function getRecurringOperationsInRange(
   recurrences: Recurrence[],
   startDate: Date,
   endDate: Date,
-): Array<{ id: string; type: Operation['type']; amount: number; date: string; categoryId: string; accountId: string; status: Operation['status']; description: string; isRecurring: true; recurrenceId: string }> {
+): RecurringOccurrence[] {
   return recurrences
     .filter((recurrence) => recurrence.isActive)
     .flatMap((recurrence) => generateRecurringOccurrences(recurrence, startDate, endDate))

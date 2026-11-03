@@ -3,7 +3,6 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { type AppMode, getModeOptions } from '../lib/demo'
 import {
-  buildForecastSnapshot,
   buildMonthlyPlan,
   calculateMonthEndBalance,
   calculateRealBalanceAtDate,
@@ -21,6 +20,7 @@ import type {
   Category,
   Operation,
   OperationType,
+  PaymentMethod,
   Recurrence,
   RecurrenceType,
   SavingsDirection,
@@ -163,6 +163,7 @@ export const useFinanceStore = defineStore('finance', () => {
     categoryId: string
     accountId: string
     status: Operation['status']
+    paymentMethod?: PaymentMethod
     description: string
     isRecurring: boolean
     savingsTransfer?: boolean
@@ -191,6 +192,7 @@ export const useFinanceStore = defineStore('finance', () => {
     categoryId: string
     accountId: string
     status: Operation['status']
+    paymentMethod?: PaymentMethod
     description: string
     isRecurring: boolean
   }) => {
@@ -203,6 +205,7 @@ export const useFinanceStore = defineStore('finance', () => {
       categoryId: payload.categoryId,
       accountId: payload.accountId,
       status: payload.status,
+      paymentMethod: payload.paymentMethod,
       description: payload.description,
       isRecurring: payload.isRecurring,
       recurrenceId: current?.recurrenceId,
@@ -224,6 +227,7 @@ export const useFinanceStore = defineStore('finance', () => {
     categoryId: string
     accountId: string
     operationType: OperationType
+    paymentMethod?: PaymentMethod
     description: string
   }) => {
     const recurrence: Recurrence = {
@@ -250,6 +254,7 @@ export const useFinanceStore = defineStore('finance', () => {
     categoryId: string
     accountId: string
     operationType: OperationType
+    paymentMethod?: PaymentMethod
     description: string
     isActive?: boolean
   }) => {
@@ -270,6 +275,7 @@ export const useFinanceStore = defineStore('finance', () => {
       categoryId: payload.categoryId,
       accountId: payload.accountId,
       operationType: payload.operationType,
+      paymentMethod: payload.paymentMethod,
       description: payload.description,
       isActive,
       createdAt: current?.createdAt ?? new Date().toISOString(),
@@ -483,14 +489,14 @@ export const useFinanceStore = defineStore('finance', () => {
   }
 
   // Échéances des récurrences à partir de demain et sur un an, traitées comme des opérations prévues.
-  // Celles arrivées à date sont déjà enregistrées comme opérations réelles (voir settleDueRecurrences).
+  // Celles arrivées à date sont déjà enregistrées comme opérations réelles (voir settleDueRecurrences),
+  // de même que celles confirmées à l'avance depuis la liste du mois.
   const upcomingRecurringOperations = computed<Operation[]>(() => {
     const start = addDays(startOfDay(new Date()), 1)
-    return getRecurringOperationsInRange(recurrences.value, start, addDays(start, 366)).map((occurrence) => ({
-      ...occurrence,
-      createdAt: '',
-      updatedAt: '',
-    }))
+    const recordedIds = new Set(operations.value.map((operation) => operation.id))
+    return getRecurringOperationsInRange(recurrences.value, start, addDays(start, 366))
+      .filter((occurrence) => !recordedIds.has(occurrence.id))
+      .map((occurrence) => ({ ...occurrence, createdAt: '', updatedAt: '' }))
   })
 
   // Opérations saisies + échéances à venir : base de tous les calculs de plan et de prévision
@@ -500,24 +506,6 @@ export const useFinanceStore = defineStore('finance', () => {
     () => (account.value?.initialBalance ?? 0) + calculateMonthEndBalance(projectedOperations.value, new Date()),
   )
 
-  const forecast = computed(() => {
-    const accountInitialBalance = account.value?.initialBalance ?? 0
-    const snapshot = (horizonDays: number) => {
-      const result = buildForecastSnapshot(projectedOperations.value, new Date(), horizonDays)
-      return {
-        ...result,
-        realBalance: result.realBalance + accountInitialBalance,
-        projectedBalance: result.projectedBalance + accountInitialBalance,
-      }
-    }
-
-    return {
-      short: snapshot(30),
-      medium: snapshot(90),
-      long: snapshot(365),
-    }
-  })
-
   // Le solde de fin de chaque mois est reporté en début du mois suivant
   const monthlyPlan = computed(() =>
     buildMonthlyPlan(projectedOperations.value, new Date(), 3, account.value?.initialBalance ?? 0),
@@ -526,11 +514,40 @@ export const useFinanceStore = defineStore('finance', () => {
   // 6 mois passés + mois en cours + 2 mois à venir, pour le graphique entrées / dépenses
   const monthlyHistory = computed(() => buildMonthlyPlan(projectedOperations.value, subMonths(new Date(), 6), 9))
 
-  const nextMovements = computed(() =>
-    [...operations.value]
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(0, 5),
-  )
+  // Toutes les opérations du mois (réelles, prévues, estimées) et les échéances de récurrences
+  // pas encore enregistrées (projected), par date
+  const getMonthOperations = (monthKey: string) => {
+    const recorded = operations.value
+      .filter((operation) => operation.date.startsWith(monthKey))
+      .map((operation) => ({ operation, projected: false }))
+    const projected = upcomingRecurringOperations.value
+      .filter((operation) => operation.date.startsWith(monthKey))
+      .map((operation) => ({ operation, projected: true }))
+
+    return [...recorded, ...projected].sort((left, right) => left.operation.date.localeCompare(right.operation.date))
+  }
+
+  // Coche / décoche une ligne de la liste du mois. Confirmer = l'opération est passée sur le compte :
+  // une date future est ramenée à aujourd'hui pour être comptée dans le solde du jour.
+  // Une échéance de récurrence pas encore enregistrée l'est alors, sous son id `<règle>-<date>`.
+  const setOperationConfirmed = async (operation: Operation, confirmed: boolean) => {
+    const today = format(new Date(), 'yyyy-MM-dd')
+    const timestamp = new Date().toISOString()
+    const current = operations.value.find((item) => item.id === operation.id)
+    const updated: Operation = {
+      ...operation,
+      status: confirmed ? 'real' : 'planned',
+      date: confirmed && operation.date > today ? today : operation.date,
+      createdAt: current?.createdAt || timestamp,
+      updatedAt: timestamp,
+    }
+
+    await persist(() => db.operations.put(updated))
+    operations.value = current
+      ? operations.value.map((item) => (item.id === updated.id ? updated : item))
+      : [updated, ...operations.value]
+    return updated
+  }
 
   const setMode = async (mode: AppMode) => {
     appMode.value = mode
@@ -703,10 +720,10 @@ export const useFinanceStore = defineStore('finance', () => {
     setSavingsBalance,
     transferSavings,
     monthEndBalance,
-    forecast,
     monthlyPlan,
     monthlyHistory,
-    nextMovements,
+    getMonthOperations,
+    setOperationConfirmed,
     upcomingRecurringOperations,
     resetDemoData,
     clearPersonalData,

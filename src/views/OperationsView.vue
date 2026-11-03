@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { format, parseISO } from 'date-fns'
+import { addMonths, format, parseISO } from 'date-fns'
+import MonthOperationList from '../components/MonthOperationList.vue'
+import { formatMonthLabel } from '../lib/forecast'
+import { paymentMethodLabels } from '../lib/labels'
 import { useFinanceStore } from '../stores/finance'
-import type { Operation, OperationStatus, OperationType } from '../types/finance'
+import type { Operation, OperationStatus, OperationType, PaymentMethod } from '../types/finance'
 
 const store = useFinanceStore()
 const editingId = ref<string | null>(null)
@@ -13,6 +16,7 @@ const form = ref<{
   categoryId: string
   accountId: string
   status: OperationStatus
+  paymentMethod?: PaymentMethod
   description: string
   isRecurring: boolean
 }>({
@@ -22,6 +26,7 @@ const form = ref<{
   categoryId: 'food',
   accountId: 'main',
   status: 'planned',
+  paymentMethod: 'card',
   description: '',
   isRecurring: false,
 })
@@ -30,13 +35,10 @@ const filteredCategories = computed(() =>
   store.categories.filter((category) => category.type === form.value.type),
 )
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)
+const listMonth = ref(store.currentMonthKey)
+const shiftMonth = (delta: number) => {
+  listMonth.value = format(addMonths(parseISO(`${listMonth.value}-01`), delta), 'yyyy-MM')
+}
 
 const resetForm = () => {
   editingId.value = null
@@ -47,6 +49,7 @@ const resetForm = () => {
     categoryId: 'food',
     accountId: 'main',
     status: 'planned',
+    paymentMethod: 'card',
     description: '',
     isRecurring: false,
   }
@@ -57,30 +60,26 @@ const submit = async () => {
     return
   }
 
-  if (editingId.value) {
-    await store.updateOperation(editingId.value, {
-      type: form.value.type,
-      amount: Number(form.value.amount),
-      date: form.value.date,
-      categoryId: form.value.categoryId,
-      accountId: form.value.accountId,
-      status: form.value.status,
-      description: form.value.description,
-      isRecurring: form.value.isRecurring,
-    })
-  } else {
-    await store.addOperation({
-      type: form.value.type,
-      amount: Number(form.value.amount),
-      date: form.value.date,
-      categoryId: form.value.categoryId,
-      accountId: form.value.accountId,
-      status: form.value.status,
-      description: form.value.description,
-      isRecurring: form.value.isRecurring,
-    })
+  const payload = {
+    type: form.value.type,
+    amount: Number(form.value.amount),
+    date: form.value.date,
+    categoryId: form.value.categoryId,
+    accountId: form.value.accountId,
+    status: form.value.status,
+    paymentMethod: form.value.paymentMethod,
+    description: form.value.description,
+    isRecurring: form.value.isRecurring,
   }
 
+  if (editingId.value) {
+    await store.updateOperation(editingId.value, payload)
+  } else {
+    await store.addOperation(payload)
+  }
+
+  // La liste suit le mois de l'opération enregistrée
+  listMonth.value = payload.date.slice(0, 7)
   resetForm()
 }
 
@@ -93,9 +92,11 @@ const startEditing = (item: Operation) => {
     categoryId: item.categoryId,
     accountId: item.accountId,
     status: item.status,
+    paymentMethod: item.paymentMethod,
     description: item.description,
     isRecurring: item.isRecurring,
   }
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 onMounted(async () => {
@@ -148,6 +149,13 @@ onMounted(async () => {
           </select>
         </label>
 
+        <label class="field">
+          <span>Moyen de paiement</span>
+          <select v-model="form.paymentMethod">
+            <option v-for="(label, value) in paymentMethodLabels" :key="value" :value="value">{{ label }}</option>
+          </select>
+        </label>
+
         <label class="field field-wide">
           <span>Description</span>
           <input v-model="form.description" type="text" placeholder="Ex: Loyer, courses, prime..." />
@@ -167,34 +175,15 @@ onMounted(async () => {
 
     <section class="panel">
       <div class="panel-header">
-        <h2>Historique</h2>
-        <span>{{ store.operations.length }} opérations</span>
-      </div>
-
-      <div v-if="store.operations.length === 0" class="empty-state">Aucune opération enregistrée.</div>
-
-      <div v-else class="operation-table">
-        <div v-for="item in store.operations" :key="item.id" class="row">
-          <div>
-            <strong>{{ item.description || 'Opération' }}</strong>
-            <small>
-              {{ format(parseISO(item.date), 'dd/MM/yyyy') }}<template v-if="item.savingsTransfer"> · Épargne</template>
-            </small>
-          </div>
-          <div class="row-amount">
-            <span :class="item.type === 'income' ? 'positive' : 'negative'">
-              {{ item.type === 'income' ? '+' : '-' }}{{ formatCurrency(item.amount) }}
-            </span>
-            <div class="row-actions">
-              <!-- Les virements d'épargne se gèrent depuis Compte principal › Épargne -->
-              <button v-if="!item.savingsTransfer" class="secondary-button" type="button" @click="startEditing(item)">
-                Modifier
-              </button>
-              <button class="delete-button" @click="store.deleteOperation(item.id)">Supprimer</button>
-            </div>
-          </div>
+        <h2>Opérations du mois</h2>
+        <div class="month-nav">
+          <button class="secondary-button" type="button" aria-label="Mois précédent" @click="shiftMonth(-1)">‹</button>
+          <span>{{ formatMonthLabel(listMonth) }}</span>
+          <button class="secondary-button" type="button" aria-label="Mois suivant" @click="shiftMonth(1)">›</button>
         </div>
       </div>
+
+      <MonthOperationList :month-key="listMonth" editable @edit="startEditing" />
     </section>
   </main>
 </template>

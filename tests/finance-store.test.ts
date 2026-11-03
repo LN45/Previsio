@@ -222,6 +222,66 @@ describe('finance store', () => {
     }
   })
 
+  it('lists the month operations and confirms them as real', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-10T08:00:00'))
+    vi.spyOn(db.recurrences, 'add').mockImplementation(async (value) => value.id)
+
+    try {
+      const store = useFinanceStore()
+      const recurrence = await store.addRecurrence({
+        name: 'Loyer',
+        type: 'monthly',
+        startDate: '2026-09-25',
+        amount: 750,
+        categoryId: 'housing',
+        accountId: 'main',
+        operationType: 'expense',
+        paymentMethod: 'direct_debit',
+        description: 'Loyer',
+      })
+      const groceries = await store.addOperation({
+        type: 'expense',
+        amount: 80,
+        date: '2026-10-08',
+        categoryId: 'food',
+        accountId: 'main',
+        status: 'planned',
+        paymentMethod: 'card',
+        description: 'Courses',
+        isRecurring: false,
+      })
+
+      // Opération saisie + échéance du 25 pas encore enregistrée
+      const items = store.getMonthOperations('2026-10')
+      expect(items.map(({ operation, projected }) => [operation.date, projected])).toEqual([
+        ['2026-10-08', false],
+        ['2026-10-25', true],
+      ])
+      expect(items[1].operation).toMatchObject({ recurrenceId: recurrence.id, paymentMethod: 'direct_debit' })
+      expect(store.realBalance).toBe(0)
+
+      await store.setOperationConfirmed(groceries, true)
+      expect(store.realBalance).toBe(-80)
+
+      // Échéance confirmée à l'avance : enregistrée à la date du jour, sans être comptée deux fois
+      await store.setOperationConfirmed(items[1].operation, true)
+      expect(store.operations.find((operation) => operation.recurrenceId === recurrence.id)).toMatchObject({
+        status: 'real',
+        date: '2026-10-10',
+      })
+      expect(store.realBalance).toBe(-830)
+      expect(store.monthlyPlan[0].expense).toBe(830)
+      expect(store.getMonthOperations('2026-10')).toHaveLength(2)
+
+      await store.setOperationConfirmed(store.operations.find((operation) => operation.id === groceries.id)!, false)
+      expect(store.realBalance).toBe(-750)
+      expect(store.monthEndBalance).toBe(-830)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('moves money between the account and the savings', async () => {
     const store = useFinanceStore()
     await store.setSavingsBalance(1000)

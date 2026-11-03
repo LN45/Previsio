@@ -1,6 +1,7 @@
 export type OperationType = 'income' | 'expense'
 export type OperationStatus = 'real' | 'planned' | 'estimated'
 export type RecurrenceType = 'monthly' | 'quarterly' | 'yearly'
+export type PaymentMethod = 'transfer' | 'check' | 'direct_debit' | 'card'
 
 export interface Category {
   id: string
@@ -30,6 +31,7 @@ export interface Operation {
   categoryId: string
   accountId: string
   status: OperationStatus
+  paymentMethod?: PaymentMethod
   description: string
   isRecurring: boolean
   recurrenceId?: string
@@ -51,6 +53,7 @@ export interface Recurrence {
   categoryId: string
   accountId: string
   operationType: OperationType
+  paymentMethod?: PaymentMethod
   description: string
   isActive: boolean
   createdAt: string

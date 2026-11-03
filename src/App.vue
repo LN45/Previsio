@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { installPrompt, promptInstall } from './lib/install'
 import { useFinanceStore } from './stores/finance'
@@ -8,6 +8,17 @@ const route = useRoute()
 const store = useFinanceStore()
 const confirmClear = ref(false)
 const mobileMenuOpen = ref(false)
+const mobileMenu = ref<HTMLElement | null>(null)
+
+// Un clic en dehors du menu (à côté des points, sur « Prévisio »…) le referme
+const closeMenuOnOutsideClick = (event: PointerEvent) => {
+  if (mobileMenuOpen.value && !mobileMenu.value?.contains(event.target as Node)) {
+    mobileMenuOpen.value = false
+  }
+}
+
+onMounted(() => document.addEventListener('pointerdown', closeMenuOnOutsideClick))
+onBeforeUnmount(() => document.removeEventListener('pointerdown', closeMenuOnOutsideClick))
 
 onMounted(async () => {
   await store.loadCollections()
@@ -78,7 +89,7 @@ const mobileActionItem = computed(() =>
           </button>
         </div>
 
-        <nav class="mobile-menu" aria-label="Menu rapide mobile">
+        <nav ref="mobileMenu" class="mobile-menu" aria-label="Menu rapide mobile">
           <button
             class="apps-menu-button"
             type="button"

@@ -2,7 +2,7 @@
 
 Prévisio est une application de gestion financière personnelle pensée pour suivre ses revenus, dépenses, budgets et prévisions sur plusieurs mois, directement depuis le navigateur.
 
-L’objectif est simple : avoir une vue claire de son solde actuel, de ses budgets mensuels et de son solde prévisionnel à 30, 90 et 365 jours, sans dépendre d’un backend ni d’un abonnement.
+L’objectif est simple : avoir une vue claire de son solde actuel, de ses budgets mensuels, de son solde prévisionnel de fin de mois et des 3 prochains mois, sans dépendre d’un backend ni d’un abonnement.
 
 ## Sommaire
 
@@ -41,15 +41,16 @@ Le projet est pensé comme un outil de planification et d’analyse, avec un sto
 
 ### 1. Dashboard financier
 
-- **solde compte** : solde de départ du compte + opérations « réelles » dont la date est passée (le solde bancaire du jour),
-- **fin de mois** : solde compte, une fois déduites toutes les opérations restantes du mois en cours (prévues, estimées, ou réelles datées plus tard dans le mois) et les échéances de récurrences à venir dans le mois,
-- plan mensuel du mois en cours et des deux mois suivants : solde de début, entrées, dépenses et solde de fin de mois ; le mois en cours démarre avec le solde du compte au 1er du mois, et chaque fin de mois est reportée en début du mois suivant (la fin du mois en cours est égale au montant « fin de mois » ci-dessus),
-- liste des 5 opérations les plus anciennes (par date),
-- répartition des dépenses du mois en cours par catégorie (nom, couleur, montant et part de chaque catégorie, du plus gros poste au plus petit) ; comme le plan mensuel, elle compte toutes les dépenses datées dans le mois, réelles, prévues ou estimées,
-- solde prévisionnel à 30, 90 et 365 jours : solde compte + opérations « prévues » et « estimées » datées dans la période,
-- montant des dépenses estimées et des opérations futures sur les 30 prochains jours.
+Affichage compact, dans cet ordre :
 
-Le plan mensuel, la fin de mois, les prévisions, la répartition des dépenses et les graphiques comptent les opérations saisies **et** les échéances à venir des récurrences actives (voir [Récurrences](#6-récurrences)).
+- **prévisionnel fin de mois** : solde du compte une fois passées toutes les entrées et sorties du mois en cours (réelles, prévues, estimées et échéances de récurrences), avec le total des entrées et des sorties du mois,
+- **solde à la date du jour** : solde de départ du compte + opérations « réelles » datées d’aujourd’hui ou avant ; il doit correspondre au solde affiché par la banque,
+- **plan prévisionnel 3 mois** (mois en cours et deux suivants) : solde de début, entrées, sorties et solde de fin ; chaque fin de mois est reportée en début du mois suivant, et la fin du mois en cours est égale au prévisionnel fin de mois,
+- **liste de toutes les opérations du mois en cours** (voir [Liste du mois](#liste-du-mois)).
+
+La répartition des dépenses par catégorie se consulte dans l’écran Graphiques.
+
+Le plan, le prévisionnel fin de mois et les graphiques comptent les opérations saisies **et** les échéances à venir des récurrences actives (voir [Récurrences](#6-récurrences)).
 
 ### 2. Gestion du compte principal
 
@@ -72,11 +73,22 @@ Les virements apparaissent dans les opérations et comptent dans le plan mensuel
 
 ### 3. Opérations
 
-- ajout d’une opération avec montant, date, catégorie, statut et description,
+- ajout d’une opération avec montant, date, catégorie, statut, moyen de paiement et description,
+- quatre moyens de paiement : virement, chèque, prélèvement, carte bancaire,
 - trois statuts : « réelle » (déjà passée sur le compte), « prévue » et « estimée » (opérations à venir utilisées par les prévisions),
 - distinction entre revenus et dépenses,
 - case « récurrente » pour repérer une opération (simple indicateur, sans lien avec les règles de récurrence),
-- suppression et modification d’une opération existante.
+- suppression et modification d’une opération existante,
+- liste des opérations par mois, avec navigation mois précédent / suivant.
+
+#### Liste du mois
+
+Sur l’accueil (mois en cours) et dans l’écran Opérations (mois au choix), la liste reprend **toutes** les opérations du mois, quel que soit leur statut, ainsi que les échéances des récurrences pas encore enregistrées. Les sorties sont en rouge, les entrées en vert ; le moyen de paiement et le statut (prévue, estimée) sont indiqués sous le libellé.
+
+Chaque ligne a une case à cocher :
+
+- **cocher** confirme que l’opération est passée sur le compte : elle passe au statut « réelle » et compte dans le solde du jour. Une opération datée dans le futur est alors ramenée à la date du jour ; une échéance de récurrence est enregistrée comme opération (elle n’est plus comptée en double) ;
+- **décocher** la repasse au statut « prévue » : elle sort du solde du jour mais reste dans le prévisionnel fin de mois.
 
 ### 4. Catégories
 
@@ -93,7 +105,7 @@ Les virements apparaissent dans les opérations et comptent dans le plan mensuel
 ### 6. Récurrences
 
 - création de règles récurrentes mensuelles, trimestrielles ou annuelles,
-- gestion des montants et dates de départ,
+- gestion des montants, dates de départ et moyen de paiement (repris sur chaque échéance),
 - modification et suppression des règles récurrentes.
 
 Les échéances **à venir** (à partir de demain, sur un an) des règles actives sont calculées automatiquement et comptées comme des opérations « prévues » dans le plan mensuel, la fin de mois, les prévisions, la répartition des dépenses et les graphiques. Elles ne sont pas enregistrées : modifier ou supprimer une règle met ces calculs à jour immédiatement.
@@ -121,7 +133,7 @@ Les budgets, eux, comparent le montant prévu aux seules opérations saisies.
 ### 9. Expérience mobile
 
 - interface pensée pour un usage sur smartphone,
-- navigation compacte et adaptée au format mobile,
+- navigation compacte et adaptée au format mobile ; le menu rapide (petits points) se referme d’un clic en dehors, par exemple sur « Prévisio »,
 - structure claire avec sections fonctionnelles accessibles rapidement,
 - installable sur l’écran d’accueil comme une application et utilisable hors connexion (voir [Installation sur mobile](#installation-sur-mobile)).
 
@@ -268,7 +280,7 @@ C’est le moyen de conserver ses données ou de les transférer d’un appareil
 5. Ajouter les récurrences (loyer, abonnements, salaire…) : leurs échéances à venir sont comptées automatiquement, puis enregistrées comme opérations réelles le jour venu.
 6. Saisir les autres opérations à venir avec le statut « prévue » ou « estimée ».
 7. Définir les budgets mensuels.
-8. Consulter le dashboard : solde compte, fin de mois et prévisions.
+8. Consulter l’accueil : solde du jour, prévisionnel fin de mois et plan 3 mois ; cocher les opérations au fur et à mesure qu’elles passent sur le compte.
 9. Exporter régulièrement ses données depuis l’écran Compte principal.
 
 ## Exemple de parcours
