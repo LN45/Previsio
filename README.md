@@ -44,7 +44,7 @@ Le projet est pensé comme un outil de planification et d’analyse, avec un sto
 Affichage compact, dans cet ordre :
 
 - **prévisionnel fin de mois** : solde du compte une fois passées toutes les entrées et sorties du mois en cours (réelles, prévues, estimées et échéances de récurrences), avec le total des entrées et des sorties du mois,
-- **solde à la date du jour** : solde de départ du compte + opérations « réelles » datées d’aujourd’hui ou avant ; il doit correspondre au solde affiché par la banque,
+- **solde à la date du jour** : solde de départ du compte + opérations « réelles » datées d’aujourd’hui ou avant ; il doit correspondre au solde affiché par la banque ; en dessous, le total des **sorties à venir ce mois-ci** (dépenses du mois pas encore passées sur le compte : prévues, estimées, échéances de récurrences),
 - **plan prévisionnel 3 mois** (mois en cours et deux suivants) : solde de début, entrées, sorties et solde de fin ; chaque fin de mois est reportée en début du mois suivant, et la fin du mois en cours est égale au prévisionnel fin de mois,
 - **liste de toutes les opérations du mois en cours** (voir [Liste du mois](#liste-du-mois)).
 

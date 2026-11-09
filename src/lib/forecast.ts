@@ -52,6 +52,16 @@ export function calculateMonthEndBalance(operations: Operation[], asOfDate: Date
   return calculateRealBalanceAtDate(operations, limit) + remainingThisMonth
 }
 
+// Dépenses du mois en cours non cochées dans la liste du mois (statut différent de « réelle »)
+export function calculateRemainingMonthExpenses(operations: Operation[], asOfDate: Date): number {
+  const monthKey = format(normalizeDate(asOfDate), 'yyyy-MM')
+
+  return operations
+    .filter((operation) => operation.type === 'expense' && operation.date.startsWith(monthKey))
+    .filter((operation) => operation.status !== 'real')
+    .reduce((total, operation) => total + operation.amount, 0)
+}
+
 export function calculateProjectedBalance(
   operations: Operation[],
   asOfDate: Date,

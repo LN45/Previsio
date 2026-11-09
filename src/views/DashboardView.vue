@@ -29,6 +29,7 @@ const today = format(new Date(), 'dd/MM/yyyy')
         <span>Solde à la date du jour</span>
         <strong :class="store.realBalance >= 0 ? 'positive' : 'negative'">{{ formatCurrency(store.realBalance) }}</strong>
         <small>Au {{ today }} · opérations réelles</small>
+        <small>Sorties à venir ce mois-ci <span class="negative">-{{ formatCurrency(store.remainingMonthExpenses) }}</span></small>
       </article>
     </section>
 

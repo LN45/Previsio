@@ -6,6 +6,7 @@ import {
   buildMonthlyPlan,
   calculateMonthEndBalance,
   calculateRealBalanceAtDate,
+  calculateRemainingMonthExpenses,
   firstOccurrenceOnOrAfter,
   formatMonthLabel,
   generateRecurringOccurrences,
@@ -506,6 +507,8 @@ export const useFinanceStore = defineStore('finance', () => {
     () => (account.value?.initialBalance ?? 0) + calculateMonthEndBalance(projectedOperations.value, new Date()),
   )
 
+  const remainingMonthExpenses = computed(() => calculateRemainingMonthExpenses(projectedOperations.value, new Date()))
+
   // Le solde de fin de chaque mois est reporté en début du mois suivant
   const monthlyPlan = computed(() =>
     buildMonthlyPlan(projectedOperations.value, new Date(), 3, account.value?.initialBalance ?? 0),
@@ -720,6 +723,7 @@ export const useFinanceStore = defineStore('finance', () => {
     setSavingsBalance,
     transferSavings,
     monthEndBalance,
+    remainingMonthExpenses,
     monthlyPlan,
     monthlyHistory,
     getMonthOperations,
